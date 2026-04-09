@@ -1,11 +1,11 @@
 use crate::cli::GenerateMode;
-use crate::parser::types::OpenApi;
+use crate::ir::ResolvedSpec;
 use anyhow::Result;
 use std::path::Path;
 
 pub mod php;
 
-pub fn run(spec: &OpenApi, output: &Path, namespace: &str, mode: GenerateMode) -> Result<()> {
+pub fn run(spec: &ResolvedSpec, output: &Path, namespace: &str, mode: GenerateMode) -> Result<()> {
     std::fs::create_dir_all(output)?;
 
     match mode {

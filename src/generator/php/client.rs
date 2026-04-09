@@ -1,8 +1,10 @@
-use crate::parser::types::OpenApi;
+use crate::ir::ResolvedSpec;
 use anyhow::Result;
 use std::path::Path;
 
-pub fn generate(spec: &OpenApi, output: &Path, namespace: &str) -> Result<()> {
+use super::models::{escape_reserved, schema_to_php_type, to_camel_case};
+
+pub fn generate(spec: &ResolvedSpec, output: &Path, namespace: &str) -> Result<()> {
     let client_dir = output.join("Client");
     std::fs::create_dir_all(&client_dir)?;
 
@@ -14,24 +16,20 @@ pub fn generate(spec: &OpenApi, output: &Path, namespace: &str) -> Result<()> {
     Ok(())
 }
 
-fn render_client(spec: &OpenApi, namespace: &str) -> String {
-    let title = &spec.info.title;
-    let base_url = spec.servers.as_ref()
-        .and_then(|s| s.first())
-        .map(|s| s.url.as_str())
-        .unwrap_or("");
-
+fn render_client(spec: &ResolvedSpec, namespace: &str) -> String {
     let mut out = String::new();
 
-    out.push_str("<?php\n\n");
-    out.push_str("declare(strict_types=1);\n\n");
+    out.push_str("<?php\n\ndeclare(strict_types=1);\n\n");
     out.push_str(&format!("namespace {namespace}\\Client;\n\n"));
     out.push_str("use Psr\\Http\\Client\\ClientInterface;\n");
     out.push_str("use Psr\\Http\\Message\\RequestFactoryInterface;\n");
     out.push_str("use Psr\\Http\\Message\\StreamFactoryInterface;\n\n");
-    out.push_str(&format!("/** {title} API Client (auto-generated) */\n"));
+    out.push_str(&format!("/** {} API Client (auto-generated) */\n", spec.title));
     out.push_str("final class ApiClient\n{\n");
-    out.push_str(&format!("    private const BASE_URL = '{base_url}';\n\n"));
+    out.push_str(&format!(
+        "    private const BASE_URL = '{}';\n\n",
+        spec.base_url
+    ));
     out.push_str("    public function __construct(\n");
     out.push_str("        private readonly ClientInterface $httpClient,\n");
     out.push_str("        private readonly RequestFactoryInterface $requestFactory,\n");
@@ -39,55 +37,93 @@ fn render_client(spec: &OpenApi, namespace: &str) -> String {
     out.push_str("        private readonly string $baseUrl = self::BASE_URL,\n");
     out.push_str("    ) {}\n");
 
-    if let Some(paths) = &spec.paths {
-        for (path, item) in paths {
-            for (method, op) in [
-                ("get", &item.get),
-                ("post", &item.post),
-                ("put", &item.put),
-                ("patch", &item.patch),
-                ("delete", &item.delete),
-            ] {
-                let Some(op) = op else { continue };
-                let fn_name = op.operation_id.as_deref()
-                    .unwrap_or("unknownOperation")
-                    .to_string();
-                let fn_name = to_camel_case(&fn_name);
+    for ep in &spec.endpoints {
+        let fn_name = escape_reserved(&to_camel_case(&ep.operation_id));
+        let method_str = ep.method.as_str();
 
-                out.push('\n');
-                if let Some(summary) = &op.summary {
-                    out.push_str(&format!("    /** {summary} */\n"));
-                }
-                out.push_str(&format!("    public function {fn_name}(): mixed\n    {{\n"));
-                out.push_str(&format!("        $request = $this->requestFactory\n"));
-                out.push_str(&format!("            ->createRequest('{method}', $this->baseUrl . '{path}');\n"));
-                out.push_str("        $response = $this->httpClient->sendRequest($request);\n");
-                out.push_str("        return json_decode((string) $response->getBody(), true);\n");
-                out.push_str("    }\n");
-            }
+        // Collect parameters
+        let mut params: Vec<String> = Vec::new();
+        for p in &ep.path_params {
+            let php_type = schema_to_php_type(&p.schema, !p.required);
+            params.push(format!("{php_type} ${}", p.php_name));
         }
+        for p in &ep.query_params {
+            let php_type = schema_to_php_type(&p.schema, !p.required);
+            params.push(format!("{php_type} ${}", p.php_name));
+        }
+        if let Some(rb) = &ep.request_body {
+            let php_type = schema_to_php_type(&rb.schema, !rb.required);
+            params.push(format!("{php_type} $body"));
+        }
+
+        let return_type = ep
+            .response
+            .as_ref()
+            .map(|s| schema_to_php_type(s, false))
+            .unwrap_or_else(|| "void".to_string());
+
+        out.push('\n');
+        if let Some(summary) = &ep.summary {
+            out.push_str(&format!("    /** {summary} */\n"));
+        }
+        if ep.deprecated {
+            out.push_str("    #[\\Deprecated]\n");
+        }
+
+        let params_str = params.join(", ");
+        out.push_str(&format!(
+            "    public function {fn_name}({params_str}): {return_type}\n    {{\n"
+        ));
+
+        // Build path with substituted variables
+        let path_expr = build_path_expr(&ep.path, &ep.path_params);
+        out.push_str(&format!(
+            "        $request = $this->requestFactory\n            ->createRequest('{method_str}', $this->baseUrl . {path_expr});\n"
+        ));
+
+        if ep.request_body.is_some() {
+            out.push_str("        $stream = $this->streamFactory->createStream(json_encode($body, JSON_THROW_ON_ERROR));\n");
+            out.push_str("        $request = $request->withBody($stream)->withHeader('Content-Type', 'application/json');\n");
+        }
+
+        out.push_str("        $response = $this->httpClient->sendRequest($request);\n");
+        if return_type == "void" {
+            // nothing to return
+        } else {
+            out.push_str(
+                "        return json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);\n",
+            );
+        }
+        out.push_str("    }\n");
     }
 
     out.push_str("}\n");
     out
 }
 
-fn to_camel_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = false;
-
-    for (i, ch) in s.chars().enumerate() {
-        if ch == '_' || ch == '-' {
-            capitalize_next = true;
-        } else if capitalize_next {
-            result.extend(ch.to_uppercase());
-            capitalize_next = false;
-        } else if i == 0 {
-            result.extend(ch.to_lowercase());
-        } else {
-            result.push(ch);
-        }
+fn build_path_expr(path: &str, path_params: &[crate::ir::ResolvedParam]) -> String {
+    if path_params.is_empty() {
+        return format!("'{path}'");
     }
+    // Convert /users/{userId}/posts → sprintf('/users/%s/posts', $userId)
+    let fmt = path
+        .split('/')
+        .map(|seg| {
+            if seg.starts_with('{') && seg.ends_with('}') {
+                "%s".to_string()
+            } else {
+                seg.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/");
 
-    result
+    let args: String = path_params
+        .iter()
+        .map(|p| format!("${}", p.php_name))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    // Strip leading slash already in the sprintf string; keep it.
+    format!("sprintf('{fmt}', {args})")
 }

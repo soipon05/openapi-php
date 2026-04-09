@@ -1,0 +1,10 @@
+# .cargo/config.toml
+#
+# Project-local Cargo aliases.
+#
+# Usage:
+#   cargo review          — interactively review pending insta snapshots
+#   cargo review --help   — show insta review options
+
+[alias]
+review = "insta review"

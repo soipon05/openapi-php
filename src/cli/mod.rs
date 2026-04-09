@@ -54,17 +54,15 @@ impl Args {
     pub fn run(self) -> Result<()> {
         match self.command {
             Command::Validate { input } => {
-                let spec = crate::parser::load(&input)?;
-                println!("✅ Valid OpenAPI {}", spec.openapi);
-                println!("   title: {}", spec.info.title);
-                println!("   paths: {}", spec.paths.as_ref().map_or(0, |p| p.len()));
-                println!("   schemas: {}", spec.components.as_ref()
-                    .and_then(|c| c.schemas.as_ref())
-                    .map_or(0, |s| s.len()));
+                let spec = crate::parser::load_and_resolve(&input)?;
+                println!("✅ Valid API v{}", spec.version);
+                println!("   title:     {}", spec.title);
+                println!("   endpoints: {}", spec.endpoints.len());
+                println!("   schemas:   {}", spec.schemas.len());
             }
 
             Command::Generate { input, output, namespace, mode } => {
-                let spec = crate::parser::load(&input)?;
+                let spec = crate::parser::load_and_resolve(&input)?;
                 println!("🔧 Generating PHP from: {}", input.display());
                 crate::generator::run(&spec, &output, &namespace, mode)?;
             }
