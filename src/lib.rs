@@ -5,6 +5,7 @@
 //   - The binary target (src/main.rs) can delegate to `openapi_php::cli`.
 
 pub mod cli;
+pub mod config;
 pub mod generator;
 pub mod ir;
 pub mod parser;
