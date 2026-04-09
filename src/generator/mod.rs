@@ -1,4 +1,5 @@
 use crate::cli::GenerateMode;
+use crate::config::Framework;
 use crate::ir::ResolvedSpec;
 use anyhow::Result;
 use std::collections::BTreeMap;
@@ -8,24 +9,42 @@ pub mod backend;
 pub mod php;
 
 pub use backend::{CodegenBackend, CodegenContext, PlainPhpBackend, RenderedFile};
+pub use php::laravel::LaravelPhpBackend;
 
-fn file_in_mode(path: &Path, mode: &GenerateMode) -> bool {
-    match mode {
-        GenerateMode::Models => path.starts_with("Models"),
-        GenerateMode::Client => path.starts_with("Client"),
-        GenerateMode::All => true,
+fn file_in_mode(path: &Path, mode: &GenerateMode, framework: &Framework) -> bool {
+    match framework {
+        Framework::Laravel => match mode {
+            GenerateMode::Models => {
+                path.starts_with("Models") || path.starts_with("Http")
+            }
+            GenerateMode::Client => path.starts_with("routes"),
+            GenerateMode::All => true,
+        },
+        _ => match mode {
+            GenerateMode::Models => path.starts_with("Models"),
+            GenerateMode::Client => path.starts_with("Client"),
+            GenerateMode::All => true,
+        },
     }
 }
 
-pub fn run(spec: &ResolvedSpec, output: &Path, namespace: &str, mode: GenerateMode) -> Result<()> {
+pub fn run(
+    spec: &ResolvedSpec,
+    output: &Path,
+    namespace: &str,
+    mode: GenerateMode,
+    framework: Framework,
+) -> Result<()> {
     std::fs::create_dir_all(output)?;
 
     let ctx = CodegenContext { spec, namespace };
-    let backend = PlainPhpBackend::new();
-    let files = backend.render(&ctx)?;
+    let files = match framework {
+        Framework::Laravel => LaravelPhpBackend::new().render(&ctx)?,
+        _ => PlainPhpBackend::new().render(&ctx)?,
+    };
 
     for file in &files {
-        if file_in_mode(&file.rel_path, &mode) {
+        if file_in_mode(&file.rel_path, &mode, &framework) {
             let full_path = output.join(&file.rel_path);
             if let Some(parent) = full_path.parent() {
                 std::fs::create_dir_all(parent)?;
@@ -45,17 +64,28 @@ pub fn run_dry_filtered(
     spec: &ResolvedSpec,
     namespace: &str,
     mode: &GenerateMode,
+    framework: &Framework,
 ) -> Result<BTreeMap<PathBuf, String>> {
     let ctx = CodegenContext { spec, namespace };
-    let backend = PlainPhpBackend::new();
-    let files = backend.run_dry(&ctx)?;
-    Ok(files.into_iter().filter(|(p, _)| file_in_mode(p, mode)).collect())
+    let files = match framework {
+        Framework::Laravel => LaravelPhpBackend::new().run_dry(&ctx)?,
+        _ => PlainPhpBackend::new().run_dry(&ctx)?,
+    };
+    Ok(files
+        .into_iter()
+        .filter(|(p, _)| file_in_mode(p, mode, framework))
+        .collect())
 }
 
 /// Print every would-be file to stdout with a separator header, then a summary.
 /// No files are written.
-pub fn run_dry_print(spec: &ResolvedSpec, namespace: &str, mode: GenerateMode) -> Result<()> {
-    let files = run_dry_filtered(spec, namespace, &mode)?;
+pub fn run_dry_print(
+    spec: &ResolvedSpec,
+    namespace: &str,
+    mode: GenerateMode,
+    framework: Framework,
+) -> Result<()> {
+    let files = run_dry_filtered(spec, namespace, &mode, &framework)?;
     let count = files.len();
     for (path, content) in &files {
         println!("=== {} ===", path.display());
@@ -73,8 +103,9 @@ pub fn run_diff(
     output: &Path,
     namespace: &str,
     mode: GenerateMode,
+    framework: Framework,
 ) -> Result<bool> {
-    let files = run_dry_filtered(spec, namespace, &mode)?;
+    let files = run_dry_filtered(spec, namespace, &mode, &framework)?;
     let total = files.len();
     let mut changed = 0usize;
 

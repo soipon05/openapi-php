@@ -1,0 +1,8 @@
+<?php
+// Auto-generated API routes stub — wire up your controllers as needed.
+use Illuminate\Support\Facades\Route;
+
+{% for route in routes %}
+// {{ route.comment }}
+Route::{{ route.method }}('{{ route.path }}', [\{{ route.controller }}::class, '{{ route.action }}']);
+{% endfor %}
