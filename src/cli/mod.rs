@@ -120,16 +120,21 @@ impl Args {
                 let spec = crate::parser::load_and_resolve(&input_path)?;
 
                 if dry_run {
-                    crate::generator::run_dry_print(&spec, &namespace, mode)?;
+                    crate::generator::run_dry_print(&spec, &namespace, mode, merged.framework)?;
                 } else if diff {
-                    let has_changes =
-                        crate::generator::run_diff(&spec, &output_path, &namespace, mode)?;
+                    let has_changes = crate::generator::run_diff(
+                        &spec,
+                        &output_path,
+                        &namespace,
+                        mode,
+                        merged.framework,
+                    )?;
                     if has_changes {
                         std::process::exit(1);
                     }
                 } else {
                     println!("🔧 Generating PHP from: {}", input_path.display());
-                    crate::generator::run(&spec, &output_path, &namespace, mode)?;
+                    crate::generator::run(&spec, &output_path, &namespace, mode, merged.framework)?;
                 }
             }
         }

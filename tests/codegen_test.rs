@@ -5,6 +5,7 @@
 //! and assert on the rendered content without personal data or real endpoints.
 
 use openapi_php::cli::GenerateMode;
+use openapi_php::config::Framework;
 use openapi_php::generator::{run_dry_filtered, CodegenBackend, CodegenContext, PlainPhpBackend};
 use openapi_php::parser;
 use std::path::{Path, PathBuf};
@@ -172,7 +173,7 @@ fn client_throws_docblock() {
 #[test]
 fn dry_run_models_mode_excludes_client_files() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
-    let files = run_dry_filtered(&spec, "App\\Test", &GenerateMode::Models).unwrap();
+    let files = run_dry_filtered(&spec, "App\\Test", &GenerateMode::Models, &Framework::Plain).unwrap();
 
     // Every returned path must be under Models/
     for path in files.keys() {
@@ -189,7 +190,7 @@ fn dry_run_models_mode_excludes_client_files() {
 #[test]
 fn dry_run_all_files_start_with_php_open_tag() {
     let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
-    let files = run_dry_filtered(&spec, "App\\Test", &GenerateMode::All).unwrap();
+    let files = run_dry_filtered(&spec, "App\\Test", &GenerateMode::All, &Framework::Plain).unwrap();
 
     assert!(!files.is_empty(), "Expected generated files");
     for (path, content) in &files {

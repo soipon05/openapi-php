@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }}\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class {{ name }}Request extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /** @return array<string, mixed> */
+    public function rules(): array
+    {
+        return [
+{% for field in fields %}
+            '{{ field.name }}' => {{ field.rules_str }},
+{% endfor %}
+        ];
+    }
+}
