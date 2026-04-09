@@ -30,6 +30,14 @@ pub enum Command {
         /// What to generate
         #[arg(short, long, default_value = "all")]
         mode: GenerateMode,
+
+        /// Print what would be generated without writing any files
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Show diff of generated vs existing files; exits 1 if any change
+        #[arg(long)]
+        diff: bool,
     },
 
     /// Validate an OpenAPI spec file
@@ -61,10 +69,20 @@ impl Args {
                 println!("   schemas:   {}", spec.schemas.len());
             }
 
-            Command::Generate { input, output, namespace, mode } => {
+            Command::Generate { input, output, namespace, mode, dry_run, diff } => {
                 let spec = crate::parser::load_and_resolve(&input)?;
-                println!("🔧 Generating PHP from: {}", input.display());
-                crate::generator::run(&spec, &output, &namespace, mode)?;
+                if dry_run {
+                    crate::generator::run_dry_print(&spec, &namespace, mode)?;
+                } else if diff {
+                    let has_changes =
+                        crate::generator::run_diff(&spec, &output, &namespace, mode)?;
+                    if has_changes {
+                        std::process::exit(1);
+                    }
+                } else {
+                    println!("🔧 Generating PHP from: {}", input.display());
+                    crate::generator::run(&spec, &output, &namespace, mode)?;
+                }
             }
         }
         Ok(())
