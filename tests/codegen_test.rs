@@ -4,7 +4,8 @@
 //! Tests use `run_dry()` to generate PHP into memory (no filesystem writes)
 //! and assert on the rendered content without personal data or real endpoints.
 
-use openapi_php::generator::{CodegenBackend, CodegenContext, PlainPhpBackend};
+use openapi_php::cli::GenerateMode;
+use openapi_php::generator::{run_dry_filtered, CodegenBackend, CodegenContext, PlainPhpBackend};
 use openapi_php::parser;
 use std::path::{Path, PathBuf};
 
@@ -164,4 +165,38 @@ fn client_throws_docblock() {
 
     assert!(client.contains("@throws \\Psr\\Http\\Client\\ClientExceptionInterface"));
     assert!(client.contains("@throws \\RuntimeException On non-2xx response"));
+}
+
+// ─── run_dry_filtered tests ───────────────────────────────────────────────────
+
+#[test]
+fn dry_run_models_mode_excludes_client_files() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let files = run_dry_filtered(&spec, "App\\Test", &GenerateMode::Models).unwrap();
+
+    // Every returned path must be under Models/
+    for path in files.keys() {
+        assert!(
+            path.starts_with("Models"),
+            "Expected only Models/ files, got: {}",
+            path.display()
+        );
+    }
+    // Sanity: at least one model was returned
+    assert!(!files.is_empty(), "Expected at least one model file");
+}
+
+#[test]
+fn dry_run_all_files_start_with_php_open_tag() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let files = run_dry_filtered(&spec, "App\\Test", &GenerateMode::All).unwrap();
+
+    assert!(!files.is_empty(), "Expected generated files");
+    for (path, content) in &files {
+        assert!(
+            content.starts_with("<?php"),
+            "File {} does not start with <?php",
+            path.display()
+        );
+    }
 }

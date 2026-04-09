@@ -9,6 +9,7 @@ use crate::ir::{
     PrimitiveSchema, ResolvedEndpoint, ResolvedParam, ResolvedProperty, ResolvedRequestBody,
     ResolvedSchema, ResolvedSpec, UnionSchema,
 };
+use crate::parser::error::ResolveError;
 use crate::parser::raw::types::{
     EnumValue, OpenApi as RawOpenApi, Operation, Parameter, ParameterLocation, RawOrRef,
     RequestBody, Response, Schema, SchemaType,
@@ -106,11 +107,22 @@ impl<'a> Resolver<'a> {
     // -----------------------------------------------------------------------
 
     fn resolve_named_schema(&mut self, name: &str) -> Result<ResolvedSchema> {
+        // Synthesise a canonical ref path for error messages when called without one.
+        let synthetic = format!("#/components/schemas/{name}");
+        self.resolve_named_schema_for_ref(name, &synthetic)
+    }
+
+    /// Core resolver: `name` is the bare schema name, `ref_path` is the full
+    /// `$ref` string used in error messages.
+    fn resolve_named_schema_for_ref(&mut self, name: &str, ref_path: &str) -> Result<ResolvedSchema> {
         if let Some(cached) = self.resolved.get(name) {
             return Ok(cached.clone());
         }
         if self.in_progress.contains(name) {
-            return Ok(ResolvedSchema::Ref(Arc::from(name)));
+            return Err(ResolveError::CircularRef {
+                cycle: ref_path.to_string(),
+            }
+            .into());
         }
 
         // Clone to release the immutable borrow on self before we mutate self
@@ -119,15 +131,24 @@ impl<'a> Resolver<'a> {
             .components
             .as_ref()
             .and_then(|c| c.schemas.get(name))
-            .ok_or_else(|| anyhow::anyhow!("Schema '{}' not found in components", name))?
+            .ok_or_else(|| ResolveError::UnknownRef {
+                ref_path: ref_path.to_string(),
+                name: name.to_string(),
+            })?
             .clone();
 
         self.in_progress.insert(name.to_string());
 
         let resolved = match raw_ror {
-            RawOrRef::Ref { ref_path } => {
-                let target = ref_name(&ref_path).to_string();
-                self.resolve_named_schema(&target)?
+            RawOrRef::Ref { ref_path: inner_ref } => {
+                if !inner_ref.starts_with("#/components/schemas/") {
+                    return Err(ResolveError::InvalidRefFormat {
+                        ref_path: inner_ref,
+                    }
+                    .into());
+                }
+                let target = ref_name(&inner_ref).to_string();
+                self.resolve_named_schema_for_ref(&target, &inner_ref)?
             }
             RawOrRef::Value(schema) => self.resolve_schema(&schema)?,
         };
@@ -140,8 +161,14 @@ impl<'a> Resolver<'a> {
     fn resolve_schema_or_ref(&mut self, ror: &RawOrRef<Schema>) -> Result<ResolvedSchema> {
         match ror {
             RawOrRef::Ref { ref_path } => {
+                if !ref_path.starts_with("#/components/schemas/") {
+                    return Err(ResolveError::InvalidRefFormat {
+                        ref_path: ref_path.clone(),
+                    }
+                    .into());
+                }
                 let name = ref_name(ref_path).to_string();
-                self.resolve_named_schema(&name)
+                self.resolve_named_schema_for_ref(&name, ref_path)
             }
             RawOrRef::Value(schema) => {
                 let schema = schema.clone(); // release borrow before mutable self
