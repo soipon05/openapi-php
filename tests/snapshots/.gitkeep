@@ -1,0 +1,3 @@
+# insta stores generated snapshot files here.
+# Committed .snap files are the approved baseline; .snap.new files are pending review.
+# Run `cargo review` (alias defined in .cargo/config.toml) to accept new snapshots.

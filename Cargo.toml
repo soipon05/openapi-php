@@ -5,6 +5,12 @@ edition = "2024"
 description = "OpenAPI 3.x → PHP code generator (written in Rust)"
 license = "MIT"
 
+# Library target — lets integration tests (tests/*.rs) access openapi_php::parser
+# and also keeps the binary thin.
+[lib]
+name = "openapi_php"
+path = "src/lib.rs"
+
 [[bin]]
 name = "openapi-php"
 path = "src/main.rs"
@@ -27,4 +33,5 @@ thiserror = "2"
 minijinja = "2"
 
 [dev-dependencies]
+insta = { version = "1", features = ["yaml"] }
 pretty_assertions = "1"

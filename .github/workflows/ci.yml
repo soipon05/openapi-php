@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust (stable + clippy)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      # Cache ~/.cargo/registry, ~/.cargo/git, and target/ keyed on Cargo.lock
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build (release)
+        run: cargo build --release
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy -- -D warnings
+
+      # ── PHP validation ──────────────────────────────────────────────────────
+      # Generates PHP from the simple fixture and checks every file for syntax
+      # errors.  Uses only fictional test data — no real API endpoints.
+
+      - name: Install PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+
+      - name: Generate PHP from simple fixture and validate syntax
+        run: |
+          ./target/release/openapi-php generate \
+            --input  tests/fixtures/simple.yaml \
+            --output /tmp/php-generated \
+            --namespace "Example\\Generated"
+
+          echo "--- Generated files ---"
+          find /tmp/php-generated -name "*.php" | sort
+
+          echo "--- Syntax check ---"
+          find /tmp/php-generated -name "*.php" -exec php -l {} \;
+
+          echo "All generated PHP files are syntactically valid."
+
+      - name: Generate PHP from petstore fixture and validate syntax
+        run: |
+          ./target/release/openapi-php generate \
+            --input  tests/fixtures/petstore.yaml \
+            --output /tmp/php-generated-petstore \
+            --namespace "Example\\Petstore"
+
+          echo "--- Generated files ---"
+          find /tmp/php-generated-petstore -name "*.php" | sort
+
+          echo "--- Syntax check ---"
+          find /tmp/php-generated-petstore -name "*.php" -exec php -l {} \;
+
+          echo "All generated petstore PHP files are syntactically valid."
