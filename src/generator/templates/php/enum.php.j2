@@ -1,0 +1,19 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }}\Models;
+{% if description %}
+
+/**
+ * {{ description }}
+ */
+{% else %}
+
+{% endif %}
+enum {{ name }}: {{ backing_type }}
+{
+{% for variant in variants %}
+    case {{ variant.name }} = {{ variant.value }};
+{% endfor %}
+}

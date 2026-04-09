@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }}\Models;
+
+{% for import in use_imports %}
+use {{ namespace }}\Models\{{ import }};
+{% endfor %}
+{% if use_imports %}
+
+{% endif %}
+{% if description %}
+/**
+ * {{ description }}
+ */
+{% endif %}
+final class {{ name }}
+{
+{% if properties %}
+    public function __construct(
+{% for prop in properties %}
+{% if prop.is_array %}
+        /**
+{% if prop.description %}
+         * {{ prop.description }}
+         * @var list<{{ prop.items_type }}>
+{% else %}
+         * @var list<{{ prop.items_type }}>
+{% endif %}
+         */
+{% elif prop.description %}
+        /**
+         * {{ prop.description }}
+         */
+{% endif %}
+        public readonly {{ prop.php_type }} ${{ prop.camel }}{% if not prop.required %} = null{% endif %},
+{% endfor %}
+    ) {}
+
+    /** @param array<string, mixed> $data */
+    public static function fromArray(array $data): self
+    {
+        return new self(
+{% for prop in properties %}
+            {{ prop.camel }}: {{ prop.from_array_expr }},
+{% endfor %}
+        );
+    }
+
+    /** @return array<string, mixed> */
+    public function toArray(): array
+    {
+        return array_filter([
+{% for prop in properties %}
+            '{{ prop.name }}' => {{ prop.to_array_expr }},
+{% endfor %}
+        ], fn($v) => $v !== null);
+    }
+{% endif %}
+}

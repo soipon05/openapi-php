@@ -1,0 +1,94 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }}\Client;
+
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+{% if needs_stream_factory %}
+use Psr\Http\Message\StreamFactoryInterface;
+{% endif %}
+{% for model_ref in model_refs %}
+use {{ namespace }}\Models\{{ model_ref }};
+{% endfor %}
+
+/** {{ title }} API Client (auto-generated) */
+final class ApiClient
+{
+    private const BASE_URL = '{{ base_url }}';
+
+    public function __construct(
+        private readonly ClientInterface $httpClient,
+        private readonly RequestFactoryInterface $requestFactory,
+{% if needs_stream_factory %}
+        private readonly StreamFactoryInterface $streamFactory,
+{% endif %}
+        private readonly string $baseUrl = self::BASE_URL,
+    ) {}
+{% for ep in endpoints %}
+
+    /**
+{% if ep.summary %}
+     * {{ ep.summary }}
+     *
+{% endif %}
+     * @throws \Psr\Http\Client\ClientExceptionInterface
+     * @throws \RuntimeException On non-2xx response
+{% if ep.has_json %}
+     * @throws \JsonException On JSON error
+{% endif %}
+     */
+{% if ep.deprecated %}
+    #[\Deprecated]
+{% endif %}
+    public function {{ ep.fn_name }}({{ ep.params_str }}): {{ ep.return_type }}
+    {
+{% if ep.has_query_params %}
+        $uri = $this->baseUrl . {{ ep.path_expr }} . '?' . http_build_query([
+{% for qp in ep.query_params %}
+            '{{ qp.name }}' => ${{ qp.php_name }},
+{% endfor %}
+        ]);
+        $request = $this->requestFactory->createRequest('{{ ep.method_str }}', $uri);
+{% else %}
+        $request = $this->requestFactory
+            ->createRequest('{{ ep.method_str }}', $this->baseUrl . {{ ep.path_expr }});
+{% endif %}
+{% if ep.has_request_body %}
+        $stream = $this->streamFactory->createStream(json_encode($body, JSON_THROW_ON_ERROR));
+        $request = $request->withBody($stream)->withHeader('Content-Type', 'application/json');
+{% endif %}
+        $response = $this->httpClient->sendRequest($request);
+        $this->assertSuccessful($response, '{{ ep.method_str }}', '{{ ep.path }}');
+{% if ep.return_ref %}
+        return {{ ep.return_ref }}::fromArray($this->decodeJson($response));
+{% elif ep.return_array %}
+        return $this->decodeJson($response);
+{% endif %}
+    }
+{% endfor %}
+
+    /** @return array<string, mixed> */
+    private function decodeJson(\Psr\Http\Message\ResponseInterface $response): array
+    {
+        /** @var array<string, mixed> $data */
+        $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        return $data;
+    }
+
+    private function assertSuccessful(
+        \Psr\Http\Message\ResponseInterface $response,
+        string $method,
+        string $uri,
+    ): void {
+        $status = $response->getStatusCode();
+        if ($status >= 200 && $status < 300) {
+            return;
+        }
+        throw new \RuntimeException(
+            sprintf('HTTP %d error: %s %s', $status, $method, $uri),
+            $status,
+        );
+    }
+}
