@@ -29,15 +29,15 @@ openapi-php generate --input openapi.yaml --framework laravel
 
 ## Features
 
-| | |
+| Feature | Description |
 |---|---|
-| ⚡ **Fast** | Written in Rust; generates thousands of files in under a second |
-| 🎯 **Precise** | Respects `$ref` resolution, `allOf`, nullable types, and enums |
-| 🐘 **PHP 8.1 – 8.3** | Readonly DTOs, `BackedEnum`, union types — tuned per version |
-| 🏗️ **Framework-aware** | `plain` (zero dependencies), `laravel` (FormRequest, JsonResource, Controller, routes stub), `symfony` (WIP — falls back to plain) |
-| 🔍 **Diff mode** | `--diff` exits 1 when generated output diverges from disk (great for CI) |
-| 👀 **Watch mode** | `--watch` re-runs generation whenever the spec file changes |
-| 🧩 **Override templates** | Drop a Jinja2 template into `--templates` to customise any file |
+| Fast | Written in Rust; generates thousands of files in under a second |
+| Precise | Respects `$ref` resolution, `allOf`, nullable types, and enums |
+| PHP 8.1 – 8.3 | Readonly DTOs, `BackedEnum`, union types |
+| Framework-aware | `plain` (zero dependencies), `laravel` (FormRequest, JsonResource, Controller, routes stub), `symfony` (WIP — falls back to plain) |
+| Diff mode | `--diff` exits 1 when generated output diverges from disk — useful for CI |
+| Watch mode | `--watch` re-runs generation whenever the spec file changes |
+| Template overrides | Drop a Jinja2 template into `--templates` to customise any file |
 
 ---
 

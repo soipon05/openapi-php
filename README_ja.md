@@ -29,15 +29,15 @@ openapi-php generate --input openapi.yaml --framework laravel
 
 ## 特徴
 
-| | |
+| 機能 | 説明 |
 |---|---|
-| ⚡ **高速** | Rust 製。数千ファイルを1秒未満で生成 |
-| 🎯 **正確** | `$ref` 解決・`allOf` マージ・nullable・enum を完全サポート |
-| 🐘 **PHP 8.1 〜 8.3** | readonly DTO・`BackedEnum`・union type をバージョンごとに最適化 |
-| 🏗️ **フレームワーク対応** | `plain`（依存ゼロ）・`laravel`（FormRequest / JsonResource / Controller / routes stub）・`symfony`（WIP、plain にフォールバック） |
-| 🔍 **差分モード** | `--diff` で生成物とディスクの差異があると終了コード 1（CI ゲートに最適） |
-| 👀 **ウォッチモード** | `--watch` でスペック変更を検知して自動再生成 |
-| 🧩 **テンプレート上書き** | `--templates` に Jinja2 テンプレートを置くだけでカスタマイズ |
+| 高速 | Rust 製。数千ファイルを1秒未満で生成 |
+| 正確 | `$ref` 解決・`allOf` マージ・nullable・enum を完全サポート |
+| PHP 8.1 〜 8.3 | readonly DTO・`BackedEnum`・union type |
+| フレームワーク対応 | `plain`（依存ゼロ）・`laravel`（FormRequest / JsonResource / Controller / routes stub）・`symfony`（WIP、plain にフォールバック） |
+| 差分モード | `--diff` で生成物とディスクの差異があると終了コード 1（CI ゲートに活用） |
+| ウォッチモード | `--watch` でスペック変更を検知して自動再生成 |
+| テンプレート上書き | `--templates` に Jinja2 テンプレートを置くだけでカスタマイズ |
 
 ---
 
