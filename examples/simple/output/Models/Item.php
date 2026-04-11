@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Simple\Models;
+namespace App\Generated\Models;
 
-use App\Simple\Models\ItemStatus;
+use App\Generated\Models\ItemStatus;
 
 final class Item
 {

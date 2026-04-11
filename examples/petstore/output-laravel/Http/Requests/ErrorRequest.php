@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Petstore\Http\Requests;
+namespace App\Generated\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 

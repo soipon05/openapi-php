@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Petstore\Client;
+namespace App\Generated\Client;
 
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
-use App\Petstore\Models\Pet;
+use App\Generated\Models\Pet;
 
 /** Fictional Petstore API API Client (auto-generated) */
 final class ApiClient

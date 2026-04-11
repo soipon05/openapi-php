@@ -141,6 +141,11 @@ pub fn collect_refs(schema: &ResolvedSchema, refs: &mut BTreeSet<String>) {
                 collect_refs(&prop.schema, refs);
             }
         }
+        ResolvedSchema::Union(u) => {
+            for variant in &u.variants {
+                collect_refs(variant, refs);
+            }
+        }
         _ => {}
     }
 }

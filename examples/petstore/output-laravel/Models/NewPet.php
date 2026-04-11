@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Petstore\Models;
+namespace App\Generated\Models;
 
-use App\Petstore\Models\Category;
-use App\Petstore\Models\PetStatus;
-use App\Petstore\Models\Tag;
+use App\Generated\Models\Category;
+use App\Generated\Models\PetStatus;
+use App\Generated\Models\Tag;
 
 /**
  * Payload required to create or replace a pet record.

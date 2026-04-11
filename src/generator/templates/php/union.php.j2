@@ -1,0 +1,39 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }}\Models;
+{% for import in use_imports %}
+use {{ namespace }}\Models\{{ import }};
+{% endfor %}
+{% if description %}
+/**
+ * {{ description }}
+ */
+{% endif %}
+final class {{ name }}
+{
+    /** @param {{ variant_type }} $value */
+    private function __construct(
+        public readonly {{ variant_type }} $value,
+    ) {}
+
+    /** @param array<string, mixed> $data */
+    public static function fromArray(array $data): self
+    {
+        return match ((string) ($data['{{ discriminator }}'] ?? '')) {
+{% for variant in variants %}
+            '{{ variant.match_key }}' => new self({{ variant.class_name }}::fromArray($data)),
+{% endfor %}
+            default => throw new \UnexpectedValueException(
+                '{{ name }}: unknown discriminator value "' . ($data['{{ discriminator }}'] ?? '') . '"',
+            ),
+        };
+    }
+
+    /** @return array<string, mixed> */
+    public function toArray(): array
+    {
+        return $this->value->toArray();
+    }
+}

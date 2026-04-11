@@ -80,5 +80,8 @@ pub enum EnumBackingType {
 pub struct UnionSchema {
     pub variants: Vec<ResolvedSchema>,
     pub discriminator: Option<String>,
+    /// discriminator.mapping: value → schema name.
+    /// Empty when no mapping is declared (use schema name as match key per OAS spec).
+    pub discriminator_mapping: IndexMap<String, String>,
     pub description: Option<String>,
 }

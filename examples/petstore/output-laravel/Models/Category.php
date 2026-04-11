@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Petstore\Models;
+namespace App\Generated\Models;
 
 /**
  * A grouping category for pets (e.g. Dogs, Cats).
