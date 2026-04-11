@@ -1,0 +1,351 @@
+openapi: "3.0.3"
+info:
+  title: Fictional Petstore API
+  description: >
+    A fictional petstore used exclusively as a test fixture.
+    All data is synthetic — no real company, endpoint, or personal
+    information is included.
+  version: "1.0.0"
+
+servers:
+  - url: https://petstore.example.com/v1
+    description: Fictional petstore server (test fixture only)
+
+tags:
+  - name: pets
+    description: Operations about pets
+  - name: store
+    description: Store-level operations
+
+# ─── Paths ────────────────────────────────────────────────────────────────────
+
+paths:
+
+  # Collection endpoint — list & create
+  /pets:
+    get:
+      operationId: listPets
+      summary: List all pets
+      description: Returns a pageable list of pets, optionally filtered by status.
+      tags: [pets]
+      parameters:
+        - name: status
+          in: query
+          description: Filter pets by lifecycle status.
+          required: false
+          schema:
+            type: string
+            enum: [available, pending, sold]
+        - name: limit
+          in: query
+          description: Maximum number of results to return (1–100).
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Zero-based pagination offset.
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: A list of pets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+        default:
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      operationId: createPet
+      summary: Create a new pet
+      description: Adds a new pet record to the store.
+      tags: [pets]
+      requestBody:
+        description: New pet payload.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewPet'
+      responses:
+        "201":
+          description: Pet created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        "400":
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Item endpoint — read, update, delete
+  /pets/{petId}:
+    get:
+      operationId: getPetById
+      summary: Find a pet by ID
+      description: Returns the pet with the given numeric identifier.
+      tags: [pets]
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          description: Numeric ID of the pet to retrieve.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The requested pet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        "404":
+          description: No pet found for the supplied ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      operationId: updatePet
+      summary: Replace a pet record
+      description: Fully replaces the pet identified by petId.
+      tags: [pets]
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewPet'
+      responses:
+        "200":
+          description: Pet updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        "404":
+          description: Pet not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      operationId: deletePet
+      summary: Delete a pet
+      description: Permanently removes the pet with the given ID.
+      tags: [pets]
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Pet deleted — no content returned.
+        "404":
+          description: Pet not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+# ─── Components ───────────────────────────────────────────────────────────────
+
+components:
+  schemas:
+
+    # ── Simple value types ──────────────────────────────────────────────────
+
+    PetStatus:
+      type: string
+      description: Lifecycle status of a pet in the store.
+      enum: [available, pending, sold]
+
+    # ── Supporting objects ──────────────────────────────────────────────────
+
+    Category:
+      type: object
+      description: A grouping category for pets (e.g. Dogs, Cats).
+      properties:
+        id:
+          type: integer
+          description: Category identifier.
+        name:
+          type: string
+          description: Human-readable category name.
+
+    Tag:
+      type: object
+      description: An arbitrary label that can be attached to a pet.
+      properties:
+        id:
+          type: integer
+          description: Tag identifier.
+        name:
+          type: string
+          description: Tag label text.
+
+    # ── Core domain objects ─────────────────────────────────────────────────
+
+    Pet:
+      type: object
+      description: A pet currently listed in the store.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          description: Unique numeric identifier assigned by the server.
+        name:
+          type: string
+          description: Display name of the pet.
+        status:
+          $ref: '#/components/schemas/PetStatus'
+        category:
+          $ref: '#/components/schemas/Category'
+        tags:
+          type: array
+          description: Free-form labels associated with this pet.
+          items:
+            $ref: '#/components/schemas/Tag'
+        photoUrls:
+          type: array
+          description: URLs of photos for this pet.
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp of when this record was created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp of the last update.
+          nullable: true
+
+    NewPet:
+      type: object
+      description: Payload required to create or replace a pet record.
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Display name (required).
+          minLength: 1
+          maxLength: 100
+        status:
+          $ref: '#/components/schemas/PetStatus'
+        category:
+          $ref: '#/components/schemas/Category'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        photoUrls:
+          type: array
+          items:
+            type: string
+
+    # ── allOf inheritance example ───────────────────────────────────────────
+
+    DomesticPet:
+      description: >
+        A domesticated pet that extends Pet with owner contact information.
+        Demonstrates allOf schema composition.
+      allOf:
+        - $ref: '#/components/schemas/Pet'
+        - type: object
+          properties:
+            ownerName:
+              type: string
+              description: Name of the pet's owner.
+            ownerEmail:
+              type: string
+              format: email
+              description: Contact e-mail for the owner.
+              nullable: true
+            vaccinated:
+              type: boolean
+              description: Whether the pet's vaccinations are up to date.
+
+    # ── oneOf discriminator example ─────────────────────────────────────────
+
+    PetOrError:
+      description: >
+        A response that is either a Pet object or an Error object.
+        Demonstrates oneOf schema composition.
+      oneOf:
+        - $ref: '#/components/schemas/Pet'
+        - $ref: '#/components/schemas/Error'
+
+    # ── Standard envelope / error objects ──────────────────────────────────
+
+    ApiResponse:
+      type: object
+      description: Generic envelope returned by some store operations.
+      properties:
+        code:
+          type: integer
+          description: Application-level result code.
+        type:
+          type: string
+          description: Short result type label (e.g. "success", "error").
+        message:
+          type: string
+          description: Human-readable explanation.
+
+    Error:
+      type: object
+      description: Standard error payload returned on 4xx / 5xx responses.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Numeric error code.
+        message:
+          type: string
+          description: Human-readable error description.
+        details:
+          type: string
+          description: Optional extended detail string.
+          nullable: true

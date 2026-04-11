@@ -240,6 +240,17 @@ openapi-php generate \
 
 ---
 
+## サンプル
+
+[`examples/`](examples/) ディレクトリにサンプル OpenAPI スペックと生成済み PHP ファイルをコミット済みです。ツールを実行しなくても生成物を確認できます。
+
+| サンプル | スペック | plain 出力 | Laravel 出力 |
+|---|---|---|---|
+| simple | [openapi.yaml](examples/simple/openapi.yaml) | [output/](examples/simple/output/) | [output-laravel/](examples/simple/output-laravel/) |
+| petstore | [openapi.yaml](examples/petstore/openapi.yaml) | [output/](examples/petstore/output/) | [output-laravel/](examples/petstore/output-laravel/) |
+
+---
+
 ## コントリビューション
 
 1. リポジトリを Fork & Clone

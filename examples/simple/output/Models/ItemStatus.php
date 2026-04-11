@@ -1,0 +1,12 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Generated\Models;
+
+enum ItemStatus: string
+{
+    case Active = 'active';
+    case Inactive = 'inactive';
+    case Archived = 'archived';
+}

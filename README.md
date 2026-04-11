@@ -227,6 +227,17 @@ Unmatched files fall back to the embedded defaults.
 
 ---
 
+## Examples
+
+The [`examples/`](examples/) directory contains sample OpenAPI specs with committed generated output — browse to see what the tool produces without running it.
+
+| Example | Spec | Plain output | Laravel output |
+|---|---|---|---|
+| simple | [openapi.yaml](examples/simple/openapi.yaml) | [output/](examples/simple/output/) | [output-laravel/](examples/simple/output-laravel/) |
+| petstore | [openapi.yaml](examples/petstore/openapi.yaml) | [output/](examples/petstore/output/) | [output-laravel/](examples/petstore/output-laravel/) |
+
+---
+
 ## Contributing
 
 1. Fork & clone the repo
