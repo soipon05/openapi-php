@@ -5,7 +5,7 @@
 //! centralised in `make_backend()`.
 
 use crate::cli::GenerateMode;
-use crate::config::Framework;
+use crate::config::{Framework, PhpVersion};
 use crate::ir::ResolvedSpec;
 use anyhow::Result;
 use std::collections::BTreeMap;
@@ -43,11 +43,12 @@ pub fn run(
     mode: GenerateMode,
     framework: Framework,
     templates_dir: Option<&Path>,
+    php_version: &PhpVersion,
 ) -> Result<()> {
     std::fs::create_dir_all(output)?;
 
     let backend = make_backend(&framework, templates_dir)?;
-    let ctx = CodegenContext { spec, namespace };
+    let ctx = CodegenContext { spec, namespace, php_version };
     let files = backend.render(&ctx)?;
 
     for file in &files {
@@ -73,9 +74,10 @@ pub fn run_dry_filtered(
     mode: &GenerateMode,
     framework: &Framework,
     templates_dir: Option<&Path>,
+    php_version: &PhpVersion,
 ) -> Result<BTreeMap<PathBuf, String>> {
     let backend = make_backend(framework, templates_dir)?;
-    let ctx = CodegenContext { spec, namespace };
+    let ctx = CodegenContext { spec, namespace, php_version };
     let files = backend.render(&ctx)?;
     Ok(files
         .into_iter()
@@ -92,8 +94,9 @@ pub fn run_dry_print(
     mode: GenerateMode,
     framework: Framework,
     templates_dir: Option<&Path>,
+    php_version: &PhpVersion,
 ) -> Result<()> {
-    let files = run_dry_filtered(spec, namespace, &mode, &framework, templates_dir)?;
+    let files = run_dry_filtered(spec, namespace, &mode, &framework, templates_dir, php_version)?;
     let count = files.len();
     for (path, content) in &files {
         println!("=== {} ===", path.display());
@@ -113,8 +116,9 @@ pub fn run_diff(
     mode: GenerateMode,
     framework: Framework,
     templates_dir: Option<&Path>,
+    php_version: &PhpVersion,
 ) -> Result<bool> {
-    let files = run_dry_filtered(spec, namespace, &mode, &framework, templates_dir)?;
+    let files = run_dry_filtered(spec, namespace, &mode, &framework, templates_dir, php_version)?;
     let total = files.len();
     let mut changed = 0usize;
 

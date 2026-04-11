@@ -14,10 +14,11 @@ pub enum Framework {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum PhpVersion {
-    #[default]
     Php81,
+    #[default]
     Php82,
     Php83,
+    Php84,
 }
 
 // ─── Config ────────────────────────────────────────────────────────────────
@@ -110,10 +111,11 @@ impl Config {
         };
 
         let php_version = match raw.generator.php_version.as_deref() {
-            Some("8.1") | None => PhpVersion::Php81,
-            Some("8.2") => PhpVersion::Php82,
+            Some("8.1") => PhpVersion::Php81,
+            Some("8.2") | None => PhpVersion::Php82,
             Some("8.3") => PhpVersion::Php83,
-            Some(other) => bail!("Unknown php_version '{other}'. Valid values: 8.1, 8.2, 8.3"),
+            Some("8.4") => PhpVersion::Php84,
+            Some(other) => bail!("Unknown php_version '{other}'. Valid values: 8.1, 8.2, 8.3, 8.4"),
         };
 
         Ok(Config {
@@ -196,7 +198,13 @@ impl PhpVersion {
             "8.1" => Ok(PhpVersion::Php81),
             "8.2" => Ok(PhpVersion::Php82),
             "8.3" => Ok(PhpVersion::Php83),
-            other => bail!("Unknown php_version '{other}'. Valid values: 8.1, 8.2, 8.3"),
+            "8.4" => Ok(PhpVersion::Php84),
+            other => bail!("Unknown php_version '{other}'. Valid values: 8.1, 8.2, 8.3, 8.4"),
         }
+    }
+
+    /// Returns `true` when the version supports `readonly class` (PHP 8.2+).
+    pub fn supports_readonly_class(&self) -> bool {
+        matches!(self, PhpVersion::Php82 | PhpVersion::Php83 | PhpVersion::Php84)
     }
 }

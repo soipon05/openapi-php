@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use openapi_php::cli::GenerateMode;
-use openapi_php::config::Framework;
+use openapi_php::config::{Framework, PhpVersion};
 use openapi_php::{generator, parser};
 use std::path::{Path, PathBuf};
 
@@ -40,6 +40,7 @@ fn bench_full_pipeline(c: &mut Criterion) {
                     &GenerateMode::All,
                     &Framework::Plain,
                     None,
+                    &PhpVersion::Php82,
                 )
                 .unwrap();
             });
@@ -59,6 +60,7 @@ fn bench_full_pipeline(c: &mut Criterion) {
                     &GenerateMode::All,
                     &Framework::Laravel,
                     None,
+                    &PhpVersion::Php82,
                 )
                 .unwrap();
             });

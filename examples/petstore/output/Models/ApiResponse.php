@@ -7,21 +7,21 @@ namespace App\Generated\Models;
 /**
  * Generic envelope returned by some store operations.
  */
-final class ApiResponse
+readonly final class ApiResponse
 {
     public function __construct(
         /**
          * Application-level result code.
          */
-        public readonly ?int $code = null,
+        public ?int $code = null,
         /**
          * Short result type label (e.g. "success", "error").
          */
-        public readonly ?string $type = null,
+        public ?string $type = null,
         /**
          * Human-readable explanation.
          */
-        public readonly ?string $message = null,
+        public ?string $message = null,
     ) {}
 
     /** @param array<string, mixed> $data */

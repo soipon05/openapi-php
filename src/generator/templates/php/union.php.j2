@@ -11,12 +11,23 @@ use {{ namespace }}\Models\{{ import }};
  * {{ description }}
  */
 {% endif %}
+{% if use_readonly_class %}
+final readonly class {{ name }}
+{% else %}
 final class {{ name }}
+{% endif %}
 {
+{% if use_readonly_class %}
+    /** @param {{ variant_type }} $value */
+    private function __construct(
+        public {{ variant_type }} $value,
+    ) {}
+{% else %}
     /** @param {{ variant_type }} $value */
     private function __construct(
         public readonly {{ variant_type }} $value,
     ) {}
+{% endif %}
 
     /** @param array<string, mixed> $data */
     public static function fromArray(array $data): self

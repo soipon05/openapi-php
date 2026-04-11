@@ -23,6 +23,8 @@ pub struct ModelCtx {
     pub description: Option<String>,
     pub use_imports: Vec<String>,
     pub properties: Vec<PropertyCtx>,
+    /// true → emit `readonly final class` (PHP 8.2+); false → per-property `readonly`
+    pub use_readonly_class: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -105,6 +107,8 @@ pub struct UnionCtx {
     pub variants: Vec<UnionVariantCtx>,
     /// Other class names that need `use` imports
     pub use_imports: Vec<String>,
+    /// true → emit `final readonly class` (PHP 8.2+); false → per-property `readonly`
+    pub use_readonly_class: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,6 +126,7 @@ pub fn build_model_ctx(
     schema: &ObjectSchema,
     namespace: &str,
     schemas: &IndexMap<String, ResolvedSchema>,
+    use_readonly_class: bool,
 ) -> ModelCtx {
     let mut refs = BTreeSet::new();
     for (_, prop) in &schema.properties {
@@ -220,6 +225,7 @@ pub fn build_model_ctx(
         description: schema.description.clone(),
         use_imports,
         properties,
+        use_readonly_class,
     }
 }
 
@@ -255,7 +261,12 @@ pub fn build_enum_ctx(name: &str, schema: &EnumSchema, namespace: &str) -> EnumC
 /// Returns `None` when the union cannot be code-generated as a discriminated container:
 /// - No discriminator declared, OR
 /// - Any variant is not a named `$ref` (inline / primitive variants are unsupported)
-pub fn build_union_ctx(name: &str, schema: &UnionSchema, namespace: &str) -> Option<UnionCtx> {
+pub fn build_union_ctx(
+    name: &str,
+    schema: &UnionSchema,
+    namespace: &str,
+    use_readonly_class: bool,
+) -> Option<UnionCtx> {
     let disc = schema.discriminator.as_ref()?;
 
     // All variants must be named $ref
@@ -314,6 +325,7 @@ pub fn build_union_ctx(name: &str, schema: &UnionSchema, namespace: &str) -> Opt
         variant_type,
         variants,
         use_imports,
+        use_readonly_class,
     })
 }
 

@@ -160,7 +160,13 @@ impl CodegenBackend for LaravelPhpBackend {
             match schema {
                 ResolvedSchema::Object(obj) => {
                     // DTO — reuse existing model template
-                    let model_ctx = build_model_ctx(name, obj, ctx.namespace, &ctx.spec.schemas);
+                    let model_ctx = build_model_ctx(
+                        name,
+                        obj,
+                        ctx.namespace,
+                        &ctx.spec.schemas,
+                        ctx.php_version.supports_readonly_class(),
+                    );
                     let content = self
                         .env
                         .get_template("model")?
@@ -208,7 +214,12 @@ impl CodegenBackend for LaravelPhpBackend {
                 ResolvedSchema::Union(u) => {
                     // Union DTOs are generated as discriminated containers (Models/ only).
                     // No FormRequest or JsonResource is generated for union types.
-                    if let Some(union_ctx) = build_union_ctx(name, u, ctx.namespace) {
+                    if let Some(union_ctx) = build_union_ctx(
+                        name,
+                        u,
+                        ctx.namespace,
+                        ctx.php_version.supports_readonly_class(),
+                    ) {
                         let content = self
                             .env
                             .get_template("union")?

@@ -7,17 +7,17 @@ namespace App\Generated\Models;
 /**
  * An arbitrary label that can be attached to a pet.
  */
-final class Tag
+readonly final class Tag
 {
     public function __construct(
         /**
          * Tag identifier.
          */
-        public readonly ?int $id = null,
+        public ?int $id = null,
         /**
          * Tag label text.
          */
-        public readonly ?string $name = null,
+        public ?string $name = null,
     ) {}
 
     /** @param array<string, mixed> $data */

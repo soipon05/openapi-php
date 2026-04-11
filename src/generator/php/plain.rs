@@ -61,7 +61,13 @@ impl CodegenBackend for PlainPhpBackend {
         for (name, schema) in &ctx.spec.schemas {
             match schema {
                 ResolvedSchema::Object(obj) => {
-                    let model_ctx = build_model_ctx(name, obj, ctx.namespace, &ctx.spec.schemas);
+                    let model_ctx = build_model_ctx(
+                        name,
+                        obj,
+                        ctx.namespace,
+                        &ctx.spec.schemas,
+                        ctx.php_version.supports_readonly_class(),
+                    );
                     let content = self
                         .env
                         .get_template("model")?
@@ -83,7 +89,12 @@ impl CodegenBackend for PlainPhpBackend {
                     });
                 }
                 ResolvedSchema::Union(u) => {
-                    if let Some(union_ctx) = build_union_ctx(name, u, ctx.namespace) {
+                    if let Some(union_ctx) = build_union_ctx(
+                        name,
+                        u,
+                        ctx.namespace,
+                        ctx.php_version.supports_readonly_class(),
+                    ) {
                         let content = self
                             .env
                             .get_template("union")?
