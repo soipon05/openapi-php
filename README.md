@@ -32,7 +32,7 @@ openapi-php generate --input openapi.yaml --framework laravel
 | ⚡ **Fast** | Written in Rust; generates thousands of files in under a second |
 | 🎯 **Precise** | Respects `$ref` resolution, `allOf`, nullable types, and enums |
 | 🐘 **PHP 8.1 – 8.3** | Readonly DTOs, `BackedEnum`, union types — tuned per version |
-| 🏗️ **Framework-aware** | `plain` (zero dependencies), `laravel` (FormRequest, JsonResource, routes stub) |
+| 🏗️ **Framework-aware** | `plain` (zero dependencies), `laravel` (FormRequest, JsonResource, Controller, routes stub), `symfony` (WIP — falls back to plain) |
 | 🔍 **Diff mode** | `--diff` exits 1 when generated output diverges from disk (great for CI) |
 | 👀 **Watch mode** | `--watch` re-runs generation whenever the spec file changes |
 | 🧩 **Override templates** | Drop a Jinja2 template into `--templates` to customise any file |
@@ -41,7 +41,19 @@ openapi-php generate --input openapi.yaml --framework laravel
 
 ## Installation
 
-### Cargo (recommended)
+### Pre-compiled binary (fastest)
+
+Download a release binary for your platform from [GitHub Releases](https://github.com/soipon05/openapi-php/releases):
+
+| Platform | Asset |
+|---|---|
+| Linux x86_64 | `openapi-php-x86_64-unknown-linux-musl` |
+| Linux aarch64 | `openapi-php-aarch64-unknown-linux-musl` |
+| macOS x86_64 | `openapi-php-x86_64-apple-darwin` |
+| macOS aarch64 (M-series) | `openapi-php-aarch64-apple-darwin` |
+| Windows x86_64 | `openapi-php-x86_64-pc-windows-msvc.exe` |
+
+### Cargo
 
 ```bash
 cargo install openapi-php
