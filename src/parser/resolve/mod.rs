@@ -228,7 +228,14 @@ impl<'a> Resolver<'a> {
                 None
             };
             let is_required = required.contains(&name);
-            let prop_schema = self.resolve_schema_or_ref(&prop_ror)?;
+            let prop_schema = match &prop_ror {
+                RawOrRef::Ref { ref_path } => {
+                    let name = ref_name(ref_path).to_string();
+                    self.resolve_named_schema_for_ref(&name, ref_path)?;
+                    ResolvedSchema::Ref(name.into())
+                }
+                _ => self.resolve_schema_or_ref(&prop_ror)?,
+            };
             properties.insert(
                 name,
                 ResolvedProperty {
@@ -248,7 +255,14 @@ impl<'a> Resolver<'a> {
     fn resolve_array(&mut self, schema: &Schema) -> Result<ResolvedSchema> {
         let items = if let Some(items_ror) = &schema.items {
             let ror = *items_ror.clone(); // Box<RawOrRef<Schema>> → RawOrRef<Schema>
-            self.resolve_schema_or_ref(&ror)?
+            match ror {
+                RawOrRef::Ref { ref_path } => {
+                    let name = ref_name(&ref_path).to_string();
+                    self.resolve_named_schema_for_ref(&name, &ref_path)?;
+                    ResolvedSchema::Ref(name.into())
+                }
+                _ => self.resolve_schema_or_ref(&ror)?,
+            }
         } else {
             ResolvedSchema::Primitive(PrimitiveSchema {
                 php_type: PhpPrimitive::Mixed,
@@ -296,7 +310,14 @@ impl<'a> Resolver<'a> {
                 None
             };
             let is_required = required.contains(&name);
-            let prop_schema = self.resolve_schema_or_ref(&prop_ror)?;
+            let prop_schema = match &prop_ror {
+                RawOrRef::Ref { ref_path } => {
+                    let name = ref_name(ref_path).to_string();
+                    self.resolve_named_schema_for_ref(&name, ref_path)?;
+                    ResolvedSchema::Ref(name.into())
+                }
+                _ => self.resolve_schema_or_ref(&prop_ror)?,
+            };
             merged.insert(
                 name,
                 ResolvedProperty {

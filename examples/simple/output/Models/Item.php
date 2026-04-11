@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Simple\Models;
+
+use App\Simple\Models\ItemStatus;
 
 final class Item
 {
@@ -10,7 +12,7 @@ final class Item
         public readonly int $id,
         public readonly string $name,
         public readonly ?string $description = null,
-        public readonly ?string $status = null,
+        public readonly ?ItemStatus $status = null,
         public readonly ?\DateTimeImmutable $createdAt = null,
     ) {}
 
@@ -21,7 +23,7 @@ final class Item
             id: (int) $data['id'],
             name: (string) $data['name'],
             description: isset($data['description']) ? (string) $data['description'] : null,
-            status: isset($data['status']) ? $data['status'] : null,
+            status: isset($data['status']) ? ItemStatus::from($data['status']) : null,
             createdAt: isset($data['createdAt']) ? new \DateTimeImmutable($data['createdAt']) : null,
         );
     }

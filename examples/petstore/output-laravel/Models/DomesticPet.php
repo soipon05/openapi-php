@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Petstore\Models;
 
+use App\Petstore\Models\Category;
+use App\Petstore\Models\PetStatus;
+use App\Petstore\Models\Tag;
+
 /**
  * A domesticated pet that extends Pet with owner contact information. Demonstrates allOf schema composition.
 
@@ -19,11 +23,11 @@ final class DomesticPet
          * Display name of the pet.
          */
         public readonly string $name,
-        public readonly ?string $status = null,
-        public readonly ?array $category = null,
+        public readonly ?PetStatus $status = null,
+        public readonly ?Category $category = null,
         /**
          * Free-form labels associated with this pet.
-         * @var list<array<string, mixed>>
+         * @var list<Tag>
          */
         public readonly ?array $tags = null,
         /**
@@ -59,9 +63,9 @@ final class DomesticPet
         return new self(
             id: (int) $data['id'],
             name: (string) $data['name'],
-            status: isset($data['status']) ? $data['status'] : null,
-            category: isset($data['category']) ? (array) $data['category'] : null,
-            tags: isset($data['tags']) ? (array) $data['tags'] : null,
+            status: isset($data['status']) ? PetStatus::from($data['status']) : null,
+            category: isset($data['category']) ? Category::fromArray($data['category']) : null,
+            tags: isset($data['tags']) ? array_map(fn($item) => Tag::fromArray($item), $data['tags']) : null,
             photoUrls: isset($data['photoUrls']) ? (array) $data['photoUrls'] : null,
             createdAt: isset($data['createdAt']) ? new \DateTimeImmutable($data['createdAt']) : null,
             updatedAt: isset($data['updatedAt']) ? new \DateTimeImmutable($data['updatedAt']) : null,
@@ -78,7 +82,7 @@ final class DomesticPet
             'id' => $this->id,
             'name' => $this->name,
             'status' => $this->status?->value,
-            'category' => $this->category,
+            'category' => $this->category?->toArray(),
             'tags' => $this->tags,
             'photoUrls' => $this->photoUrls,
             'createdAt' => $this->createdAt?->format(\DateTimeInterface::RFC3339),

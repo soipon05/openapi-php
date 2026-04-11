@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Client;
+namespace App\Simple\Client;
 
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
-use App\Generated\Models\Item;
+use App\Simple\Models\Item;
 
 /** Simple API API Client (auto-generated) */
 final class ApiClient

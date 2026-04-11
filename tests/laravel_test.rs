@@ -254,8 +254,14 @@ fn laravel_controller_has_phpdoc_comments() {
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
 
-    assert!(content.contains("@return JsonResponse"), "Expected @return in PHPDoc");
-    assert!(content.contains("@return ItemResource"), "Expected @return ItemResource in PHPDoc");
+    assert!(
+        content.contains("@return JsonResponse"),
+        "Expected @return in PHPDoc"
+    );
+    assert!(
+        content.contains("@return ItemResource"),
+        "Expected @return ItemResource in PHPDoc"
+    );
     assert!(content.contains("// TODO: implement"), "Expected TODO stub");
 }
 
@@ -272,6 +278,8 @@ fn laravel_petstore_controller_has_all_crud_methods() {
     assert!(content.contains("public function index(): JsonResponse"));
     assert!(content.contains("public function store(NewPetRequest $request): PetResource"));
     assert!(content.contains("public function show(int $petId): PetResource"));
-    assert!(content.contains("public function update(NewPetRequest $request, int $petId): PetResource"));
+    assert!(
+        content.contains("public function update(NewPetRequest $request, int $petId): PetResource")
+    );
     assert!(content.contains("public function destroy(int $petId): JsonResponse"));
 }

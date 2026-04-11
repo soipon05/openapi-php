@@ -54,7 +54,7 @@ impl CodegenBackend for PlainPhpBackend {
         for (name, schema) in &ctx.spec.schemas {
             match schema {
                 ResolvedSchema::Object(obj) => {
-                    let model_ctx = build_model_ctx(name, obj, ctx.namespace);
+                    let model_ctx = build_model_ctx(name, obj, ctx.namespace, &ctx.spec.schemas);
                     let content = self
                         .env
                         .get_template("model")?

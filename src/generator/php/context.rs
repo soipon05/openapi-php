@@ -5,6 +5,7 @@
 //! transform IR types into these template-ready structures.
 
 use crate::ir::{EnumBackingType, EnumSchema, ObjectSchema, ResolvedSchema, ResolvedSpec};
+use indexmap::IndexMap;
 use serde::Serialize;
 use std::collections::BTreeSet;
 
@@ -94,7 +95,12 @@ pub struct QueryParamCtx {
 
 // ─── Context builders ──────────────────────────────────────────────────────
 
-pub fn build_model_ctx(name: &str, schema: &ObjectSchema, namespace: &str) -> ModelCtx {
+pub fn build_model_ctx(
+    name: &str,
+    schema: &ObjectSchema,
+    namespace: &str,
+    schemas: &IndexMap<String, ResolvedSchema>,
+) -> ModelCtx {
     let mut refs = BTreeSet::new();
     for (_, prop) in &schema.properties {
         collect_refs(&prop.schema, &mut refs);
@@ -114,6 +120,64 @@ pub fn build_model_ctx(name: &str, schema: &ObjectSchema, namespace: &str) -> Mo
             } else {
                 String::new()
             };
+            let (from_expr, to_expr) = match &prop.schema {
+                ResolvedSchema::Ref(ref_name) => {
+                    let is_enum = schemas
+                        .get(ref_name.as_ref())
+                        .map(|s| matches!(s, ResolvedSchema::Enum(_)))
+                        .unwrap_or(false);
+                    if is_enum {
+                        let from_e = if nullable {
+                            format!(
+                                "isset($data['{prop_name}']) ? {ref_name}::from($data['{prop_name}']) : null"
+                            )
+                        } else {
+                            format!("{ref_name}::from($data['{prop_name}'])")
+                        };
+                        let to_e = if nullable {
+                            format!("$this->{camel}?->value")
+                        } else {
+                            format!("$this->{camel}->value")
+                        };
+                        (from_e, to_e)
+                    } else {
+                        (
+                            from_array_expr(prop_name, &prop.schema, nullable),
+                            to_array_expr(prop_name, &camel, &prop.schema, nullable),
+                        )
+                    }
+                }
+                ResolvedSchema::Array(arr) => {
+                    let from_e = match arr.items.as_ref() {
+                        ResolvedSchema::Ref(rname) => {
+                            let is_enum = schemas
+                                .get(rname.as_ref())
+                                .map(|s| matches!(s, ResolvedSchema::Enum(_)))
+                                .unwrap_or(false);
+                            if is_enum {
+                                if nullable {
+                                    format!(
+                                        "isset($data['{prop_name}']) ? array_map(fn($item) => {rname}::from($item), $data['{prop_name}']) : null"
+                                    )
+                                } else {
+                                    format!(
+                                        "array_map(fn($item) => {rname}::from($item), $data['{prop_name}'] ?? [])"
+                                    )
+                                }
+                            } else {
+                                from_array_expr(prop_name, &prop.schema, nullable)
+                            }
+                        }
+                        _ => from_array_expr(prop_name, &prop.schema, nullable),
+                    };
+                    let to_e = to_array_expr(prop_name, &camel, &prop.schema, nullable);
+                    (from_e, to_e)
+                }
+                _ => (
+                    from_array_expr(prop_name, &prop.schema, nullable),
+                    to_array_expr(prop_name, &camel, &prop.schema, nullable),
+                ),
+            };
             PropertyCtx {
                 name: prop_name.clone(),
                 camel: camel.clone(),
@@ -122,8 +186,8 @@ pub fn build_model_ctx(name: &str, schema: &ObjectSchema, namespace: &str) -> Mo
                 is_array,
                 items_type,
                 description: prop.description.clone(),
-                from_array_expr: from_array_expr(prop_name, &prop.schema, nullable),
-                to_array_expr: to_array_expr(prop_name, &camel, &prop.schema, nullable),
+                from_array_expr: from_expr,
+                to_array_expr: to_expr,
             }
         })
         .collect();
