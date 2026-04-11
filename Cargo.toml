@@ -38,5 +38,10 @@ similar = { version = "2", features = ["text"] }
 notify = "7"
 
 [dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 insta = { version = "1", features = ["yaml"] }
 pretty_assertions = "1"
+
+[[bench]]
+name = "codegen"
+harness = false
