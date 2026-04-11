@@ -484,17 +484,17 @@ fn build_controller_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Controller
                 let mut phpdoc_params: Vec<String> = Vec::new();
 
                 // Request body parameter (comes first in Laravel convention)
-                if let Some(body) = &ep.request_body {
-                    if let ResolvedSchema::Ref(r) = &body.schema {
-                        let req_class = format!("{r}Request");
-                        let use_stmt =
-                            format!("{namespace}\\Http\\Requests\\{req_class}");
-                        if !use_statements.contains(&use_stmt) {
-                            use_statements.push(use_stmt);
-                        }
-                        phpdoc_params.push(format!("@param {req_class} $request"));
-                        params_parts.push(format!("{req_class} $request"));
+                if let Some(body) = &ep.request_body
+                    && let ResolvedSchema::Ref(r) = &body.schema
+                {
+                    let req_class = format!("{r}Request");
+                    let use_stmt =
+                        format!("{namespace}\\Http\\Requests\\{req_class}");
+                    if !use_statements.contains(&use_stmt) {
+                        use_statements.push(use_stmt);
                     }
+                    phpdoc_params.push(format!("@param {req_class} $request"));
+                    params_parts.push(format!("{req_class} $request"));
                 }
 
                 // Path parameters
