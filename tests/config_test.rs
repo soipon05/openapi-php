@@ -112,6 +112,7 @@ namespace = "From\\Config"
         framework: None,
         php_version: None,
         input: None,
+        templates: None,
     });
 
     assert_eq!(merged.namespace, "From\\Cli");
@@ -138,6 +139,7 @@ path = "config-spec.yaml"
         framework: None,
         php_version: None,
         input: None,
+        templates: None,
     });
 
     assert_eq!(merged.output, Some(PathBuf::from("config-out")));

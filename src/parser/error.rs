@@ -5,13 +5,22 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum ParseError {
     #[error("Cannot read file `{path}`: {source}")]
-    Io { path: PathBuf, source: std::io::Error },
+    Io {
+        path: PathBuf,
+        source: std::io::Error,
+    },
 
     #[error("Invalid YAML in `{path}`: {source}")]
-    Yaml { path: PathBuf, source: serde_yaml::Error },
+    Yaml {
+        path: PathBuf,
+        source: serde_yaml::Error,
+    },
 
     #[error("Invalid JSON in `{path}`: {source}")]
-    Json { path: PathBuf, source: serde_json::Error },
+    Json {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
 
     #[error("Unsupported file extension `{ext}` in `{path}` (expected .yaml, .yml, or .json)")]
     UnsupportedExtension { path: PathBuf, ext: String },

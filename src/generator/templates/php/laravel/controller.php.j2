@@ -1,0 +1,32 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }}\Http\Controllers;
+
+use Illuminate\Http\JsonResponse;
+{% for stmt in use_statements %}
+use {{ stmt }};
+{% endfor %}
+class {{ name }}Controller extends Controller
+{
+{% for method in methods %}
+{% if not loop.first %}
+
+{% endif %}
+    /**
+{% if method.summary %}
+     * {{ method.summary }}
+     *
+{% endif %}
+{% for doc in method.phpdoc_params %}
+     * {{ doc }}
+{% endfor %}
+     * {{ method.phpdoc_return }}
+     */
+    public function {{ method.action }}({{ method.params_str }}): {{ method.return_type }}
+    {
+        // TODO: implement
+    }
+{% endfor %}
+}

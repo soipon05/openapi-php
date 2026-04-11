@@ -103,7 +103,10 @@ fn simple_fixture_has_expected_paths() {
 #[test]
 fn simple_fixture_items_path_has_get_and_post() {
     let spec = parser::load(&fixture("simple.yaml")).unwrap();
-    let items = spec.paths.get("/items").expect("simple.yaml must have /items");
+    let items = spec
+        .paths
+        .get("/items")
+        .expect("simple.yaml must have /items");
     assert!(items.get.is_some(), "/items must have a GET (listItems)");
     assert!(items.post.is_some(), "/items must have a POST (createItem)");
 }

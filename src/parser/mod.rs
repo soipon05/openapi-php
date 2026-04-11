@@ -29,7 +29,7 @@ pub fn load(path: &Path) -> Result<RawOpenApi> {
                 path: path.to_path_buf(),
                 ext: other.to_string(),
             }
-            .into())
+            .into());
         }
     };
 

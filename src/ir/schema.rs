@@ -1,3 +1,5 @@
+//! IR schema types: the resolved, PHP-ready representation of OpenAPI schemas.
+
 use indexmap::IndexMap;
 use std::sync::Arc;
 

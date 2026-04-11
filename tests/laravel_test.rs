@@ -21,7 +21,7 @@ fn laravel_generates_form_requests() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let backend = LaravelPhpBackend::new();
+    let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
 
     let key = PathBuf::from("Http/Requests/ItemRequest.php");
@@ -52,7 +52,7 @@ fn laravel_generates_resources() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let backend = LaravelPhpBackend::new();
+    let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
 
     let key = PathBuf::from("Http/Resources/ItemResource.php");
@@ -82,7 +82,7 @@ fn laravel_generates_routes() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let backend = LaravelPhpBackend::new();
+    let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
 
     let key = PathBuf::from("routes/api.php");
@@ -102,7 +102,10 @@ fn laravel_generates_routes() {
     // simple.yaml has GET + POST /items and GET + DELETE /items/{id}
     assert!(content.contains("Route::get("), "Expected Route::get()");
     assert!(content.contains("Route::post("), "Expected Route::post()");
-    assert!(content.contains("Route::delete("), "Expected Route::delete()");
+    assert!(
+        content.contains("Route::delete("),
+        "Expected Route::delete()"
+    );
 }
 
 #[test]
@@ -112,7 +115,7 @@ fn laravel_still_generates_models() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let backend = LaravelPhpBackend::new();
+    let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
 
     // DTOs must be generated alongside Laravel-specific files
@@ -133,4 +136,142 @@ fn laravel_still_generates_models() {
         item.contains("final class Item"),
         "Expected final class Item in DTO"
     );
+}
+
+// ─── Controller tests ─────────────────────────────────────────────────────────
+
+#[test]
+fn laravel_generates_controller_file() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        spec: &spec,
+        namespace: "App\\Generated",
+    };
+    let backend = LaravelPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+
+    let key = PathBuf::from("Http/Controllers/ItemController.php");
+    assert!(
+        files.contains_key(&key),
+        "Expected Http/Controllers/ItemController.php; got: {:?}",
+        files.keys().collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn laravel_controller_has_correct_namespace_and_class() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        spec: &spec,
+        namespace: "App\\Generated",
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
+
+    assert!(content.contains("declare(strict_types=1)"));
+    assert!(
+        content.contains("namespace App\\Generated\\Http\\Controllers"),
+        "Expected correct namespace"
+    );
+    assert!(
+        content.contains("class ItemController extends Controller"),
+        "Expected class definition"
+    );
+}
+
+#[test]
+fn laravel_controller_has_index_and_destroy_returning_json_response() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        spec: &spec,
+        namespace: "App\\Generated",
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
+
+    assert!(
+        content.contains("public function index(): JsonResponse"),
+        "Expected index() method returning JsonResponse"
+    );
+    assert!(
+        content.contains("public function destroy(int $id): JsonResponse"),
+        "Expected destroy(int $id) method"
+    );
+    assert!(
+        content.contains("use Illuminate\\Http\\JsonResponse"),
+        "Expected JsonResponse import"
+    );
+}
+
+#[test]
+fn laravel_controller_has_show_with_resource_return() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        spec: &spec,
+        namespace: "App\\Generated",
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
+
+    assert!(
+        content.contains("public function show(int $id): ItemResource"),
+        "Expected show(int $id): ItemResource"
+    );
+    assert!(
+        content.contains("use App\\Generated\\Http\\Resources\\ItemResource"),
+        "Expected ItemResource import"
+    );
+}
+
+#[test]
+fn laravel_controller_store_has_form_request_param() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        spec: &spec,
+        namespace: "App\\Generated",
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
+
+    // POST /items uses CreateItemRequest body → CreateItemRequestRequest
+    assert!(
+        content.contains("CreateItemRequestRequest $request"),
+        "Expected FormRequest type hint in store()"
+    );
+    assert!(
+        content.contains("use App\\Generated\\Http\\Requests\\CreateItemRequestRequest"),
+        "Expected FormRequest import"
+    );
+}
+
+#[test]
+fn laravel_controller_has_phpdoc_comments() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        spec: &spec,
+        namespace: "App\\Generated",
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
+
+    assert!(content.contains("@return JsonResponse"), "Expected @return in PHPDoc");
+    assert!(content.contains("@return ItemResource"), "Expected @return ItemResource in PHPDoc");
+    assert!(content.contains("// TODO: implement"), "Expected TODO stub");
+}
+
+#[test]
+fn laravel_petstore_controller_has_all_crud_methods() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        spec: &spec,
+        namespace: "App",
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let content = &files[&PathBuf::from("Http/Controllers/PetController.php")];
+
+    assert!(content.contains("public function index(): JsonResponse"));
+    assert!(content.contains("public function store(NewPetRequest $request): PetResource"));
+    assert!(content.contains("public function show(int $petId): PetResource"));
+    assert!(content.contains("public function update(NewPetRequest $request, int $petId): PetResource"));
+    assert!(content.contains("public function destroy(int $petId): JsonResponse"));
 }

@@ -1,3 +1,5 @@
+//! IR endpoint types: resolved API endpoints with fully expanded parameters and responses.
+
 use indexmap::IndexMap;
 
 use super::schema::ResolvedSchema;

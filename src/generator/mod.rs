@@ -1,3 +1,9 @@
+//! Top-level generator API.
+//!
+//! Entry points: `run()` (write to disk), `run_dry_print()` (preview to stdout),
+//! `run_diff()` (compare against existing files).  Framework dispatch is
+//! centralised in `make_backend()`.
+
 use crate::cli::GenerateMode;
 use crate::config::Framework;
 use crate::ir::ResolvedSpec;
@@ -8,25 +14,27 @@ use std::path::{Path, PathBuf};
 pub mod backend;
 pub mod php;
 
-pub use backend::{CodegenBackend, CodegenContext, PlainPhpBackend, RenderedFile};
+pub use backend::{CodegenBackend, CodegenContext, RenderedFile};
 pub use php::laravel::LaravelPhpBackend;
+pub use php::plain::PlainPhpBackend;
 
-fn file_in_mode(path: &Path, mode: &GenerateMode, framework: &Framework) -> bool {
+// ─── Framework dispatch ───────────────────────────────────────────────────
+
+fn make_backend(
+    framework: &Framework,
+    templates_dir: Option<&Path>,
+) -> Result<Box<dyn CodegenBackend>> {
     match framework {
-        Framework::Laravel => match mode {
-            GenerateMode::Models => {
-                path.starts_with("Models") || path.starts_with("Http")
-            }
-            GenerateMode::Client => path.starts_with("routes"),
-            GenerateMode::All => true,
-        },
-        _ => match mode {
-            GenerateMode::Models => path.starts_with("Models"),
-            GenerateMode::Client => path.starts_with("Client"),
-            GenerateMode::All => true,
-        },
+        Framework::Plain => Ok(Box::new(PlainPhpBackend::new(templates_dir)?)),
+        Framework::Laravel => Ok(Box::new(LaravelPhpBackend::new(templates_dir)?)),
+        Framework::Symfony => {
+            eprintln!("warning: Symfony backend is not yet implemented; falling back to plain PHP");
+            Ok(Box::new(PlainPhpBackend::new(templates_dir)?))
+        }
     }
 }
+
+// ─── Public API ───────────────────────────────────────────────────────────
 
 pub fn run(
     spec: &ResolvedSpec,
@@ -34,17 +42,16 @@ pub fn run(
     namespace: &str,
     mode: GenerateMode,
     framework: Framework,
+    templates_dir: Option<&Path>,
 ) -> Result<()> {
     std::fs::create_dir_all(output)?;
 
+    let backend = make_backend(&framework, templates_dir)?;
     let ctx = CodegenContext { spec, namespace };
-    let files = match framework {
-        Framework::Laravel => LaravelPhpBackend::new().render(&ctx)?,
-        _ => PlainPhpBackend::new().render(&ctx)?,
-    };
+    let files = backend.render(&ctx)?;
 
     for file in &files {
-        if file_in_mode(&file.rel_path, &mode, &framework) {
+        if backend.filter_by_mode(&file.rel_path, &mode) {
             let full_path = output.join(&file.rel_path);
             if let Some(parent) = full_path.parent() {
                 std::fs::create_dir_all(parent)?;
@@ -65,15 +72,15 @@ pub fn run_dry_filtered(
     namespace: &str,
     mode: &GenerateMode,
     framework: &Framework,
+    templates_dir: Option<&Path>,
 ) -> Result<BTreeMap<PathBuf, String>> {
+    let backend = make_backend(framework, templates_dir)?;
     let ctx = CodegenContext { spec, namespace };
-    let files = match framework {
-        Framework::Laravel => LaravelPhpBackend::new().run_dry(&ctx)?,
-        _ => PlainPhpBackend::new().run_dry(&ctx)?,
-    };
+    let files = backend.render(&ctx)?;
     Ok(files
         .into_iter()
-        .filter(|(p, _)| file_in_mode(p, mode, framework))
+        .map(|f| (f.rel_path, f.content))
+        .filter(|(p, _)| backend.filter_by_mode(p, mode))
         .collect())
 }
 
@@ -84,8 +91,9 @@ pub fn run_dry_print(
     namespace: &str,
     mode: GenerateMode,
     framework: Framework,
+    templates_dir: Option<&Path>,
 ) -> Result<()> {
-    let files = run_dry_filtered(spec, namespace, &mode, &framework)?;
+    let files = run_dry_filtered(spec, namespace, &mode, &framework, templates_dir)?;
     let count = files.len();
     for (path, content) in &files {
         println!("=== {} ===", path.display());
@@ -104,8 +112,9 @@ pub fn run_diff(
     namespace: &str,
     mode: GenerateMode,
     framework: Framework,
+    templates_dir: Option<&Path>,
 ) -> Result<bool> {
-    let files = run_dry_filtered(spec, namespace, &mode, &framework)?;
+    let files = run_dry_filtered(spec, namespace, &mode, &framework, templates_dir)?;
     let total = files.len();
     let mut changed = 0usize;
 
