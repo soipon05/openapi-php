@@ -153,7 +153,7 @@ impl CodegenBackend for LaravelPhpBackend {
             match schema {
                 ResolvedSchema::Object(obj) => {
                     // DTO — reuse existing model template
-                    let model_ctx = build_model_ctx(name, obj, ctx.namespace);
+                    let model_ctx = build_model_ctx(name, obj, ctx.namespace, &ctx.spec.schemas);
                     let content = self
                         .env
                         .get_template("model")?
@@ -488,8 +488,7 @@ fn build_controller_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Controller
                     && let ResolvedSchema::Ref(r) = &body.schema
                 {
                     let req_class = format!("{r}Request");
-                    let use_stmt =
-                        format!("{namespace}\\Http\\Requests\\{req_class}");
+                    let use_stmt = format!("{namespace}\\Http\\Requests\\{req_class}");
                     if !use_statements.contains(&use_stmt) {
                         use_statements.push(use_stmt);
                     }
@@ -508,8 +507,7 @@ fn build_controller_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Controller
                         },
                         _ => "string",
                     };
-                    phpdoc_params
-                        .push(format!("@param {type_hint} ${}", pp.php_name));
+                    phpdoc_params.push(format!("@param {type_hint} ${}", pp.php_name));
                     params_parts.push(format!("{type_hint} ${}", pp.php_name));
                 }
 
@@ -517,8 +515,7 @@ fn build_controller_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Controller
                 let return_type = match &ep.response {
                     Some(ResolvedSchema::Ref(r)) => {
                         let res_class = format!("{r}Resource");
-                        let use_stmt =
-                            format!("{namespace}\\Http\\Resources\\{res_class}");
+                        let use_stmt = format!("{namespace}\\Http\\Resources\\{res_class}");
                         if !use_statements.contains(&use_stmt) {
                             use_statements.push(use_stmt);
                         }

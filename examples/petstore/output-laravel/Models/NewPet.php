@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Petstore\Models;
 
+use App\Petstore\Models\Category;
+use App\Petstore\Models\PetStatus;
+use App\Petstore\Models\Tag;
+
 /**
  * Payload required to create or replace a pet record.
  */
@@ -14,10 +18,10 @@ final class NewPet
          * Display name (required).
          */
         public readonly string $name,
-        public readonly ?string $status = null,
-        public readonly ?array $category = null,
+        public readonly ?PetStatus $status = null,
+        public readonly ?Category $category = null,
         /**
-         * @var list<array<string, mixed>>
+         * @var list<Tag>
          */
         public readonly ?array $tags = null,
         /**
@@ -31,9 +35,9 @@ final class NewPet
     {
         return new self(
             name: (string) $data['name'],
-            status: isset($data['status']) ? $data['status'] : null,
-            category: isset($data['category']) ? (array) $data['category'] : null,
-            tags: isset($data['tags']) ? (array) $data['tags'] : null,
+            status: isset($data['status']) ? PetStatus::from($data['status']) : null,
+            category: isset($data['category']) ? Category::fromArray($data['category']) : null,
+            tags: isset($data['tags']) ? array_map(fn($item) => Tag::fromArray($item), $data['tags']) : null,
             photoUrls: isset($data['photoUrls']) ? (array) $data['photoUrls'] : null,
         );
     }
@@ -44,7 +48,7 @@ final class NewPet
         return array_filter([
             'name' => $this->name,
             'status' => $this->status?->value,
-            'category' => $this->category,
+            'category' => $this->category?->toArray(),
             'tags' => $this->tags,
             'photoUrls' => $this->photoUrls,
         ], fn($v) => $v !== null);
