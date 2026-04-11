@@ -90,8 +90,10 @@ app/Generated/
     Pet.php              # readonly DTO
     PetStatus.php        # BackedEnum
   Http/
+    Controllers/
+      PetController.php      # Resource controller stub (index/show/store/update/destroy)
     Requests/
-      CreatePetRequest.php   # FormRequest with validation rules
+      NewPetRequest.php      # FormRequest with validation rules
     Resources/
       PetResource.php        # JsonResource
   routes/
