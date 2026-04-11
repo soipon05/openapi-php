@@ -6,6 +6,8 @@
 
 **Generate PHP models, API clients, and Laravel boilerplate from any OpenAPI 3.x spec — in milliseconds.**
 
+[日本語版 README はこちら](README_ja.md)
+
 ```
 openapi-php generate --input openapi.yaml --framework laravel
 ```
@@ -204,7 +206,6 @@ src/
   php_utils.rs     to_camel_case, to_pascal_case, …
 tests/
   fixtures/        Sample OpenAPI specs used by integration tests
-  snapshots/       insta snapshot files
 ```
 
 ---
