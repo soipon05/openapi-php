@@ -7,21 +7,21 @@ namespace App\Generated\Models;
 /**
  * Standard error payload returned on 4xx / 5xx responses.
  */
-final class Error
+readonly final class Error
 {
     public function __construct(
         /**
          * Numeric error code.
          */
-        public readonly int $code,
+        public int $code,
         /**
          * Human-readable error description.
          */
-        public readonly string $message,
+        public string $message,
         /**
          * Optional extended detail string.
          */
-        public readonly ?string $details = null,
+        public ?string $details = null,
     ) {}
 
     /** @param array<string, mixed> $data */

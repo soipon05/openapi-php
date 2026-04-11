@@ -3,6 +3,7 @@
 //! Integration tests for discriminated-union code generation.
 //! Uses the `discriminated_union.yaml` fixture.
 
+use openapi_php::config::PhpVersion;
 use openapi_php::generator::{CodegenBackend, CodegenContext, LaravelPhpBackend, PlainPhpBackend};
 use openapi_php::parser;
 use std::path::{Path, PathBuf};
@@ -80,6 +81,7 @@ fn no_discriminator_union_has_none() {
 fn plain_generates_union_file_with_mapping() {
     let spec = spec();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
     };
@@ -89,8 +91,11 @@ fn plain_generates_union_file_with_mapping() {
     let pet_path = PathBuf::from("Models/Pet.php");
     let content = files.get(&pet_path).expect("Models/Pet.php should be generated");
 
-    // final class container
-    assert!(content.contains("final class Pet"), "should be final class");
+    // final class container (8.2+ uses `final readonly class`)
+    assert!(
+        content.contains("final readonly class Pet") || content.contains("final class Pet"),
+        "should be final class"
+    );
     assert!(content.contains("private function __construct"), "should have private __construct");
     assert!(content.contains("Dog|Cat $value"), "should have union property type");
 
@@ -110,6 +115,7 @@ fn plain_generates_union_file_with_mapping() {
 fn plain_generates_union_file_no_mapping_uses_schema_name() {
     let spec = spec();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
     };
@@ -128,6 +134,7 @@ fn plain_generates_union_file_no_mapping_uses_schema_name() {
 fn plain_does_not_generate_file_for_union_without_discriminator() {
     let spec = spec();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
     };
@@ -146,6 +153,7 @@ fn plain_does_not_generate_file_for_union_without_discriminator() {
 fn laravel_generates_union_dto_no_form_request_or_resource() {
     let spec = spec();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
     };

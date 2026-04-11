@@ -6,6 +6,7 @@
 
 use openapi_php::cli::GenerateMode;
 use openapi_php::config::Framework;
+use openapi_php::config::PhpVersion;
 use openapi_php::generator::{CodegenBackend, CodegenContext, PlainPhpBackend, run_dry_filtered};
 use openapi_php::parser;
 use std::path::{Path, PathBuf};
@@ -23,6 +24,7 @@ fn fixture(name: &str) -> PathBuf {
 fn run_dry_simple_returns_expected_paths() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
     };
@@ -40,6 +42,7 @@ fn run_dry_simple_returns_expected_paths() {
 fn run_dry_petstore_returns_all_models() {
     let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
     };
@@ -58,6 +61,7 @@ fn run_dry_petstore_returns_all_models() {
 fn model_has_declare_strict_and_namespace() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -73,6 +77,7 @@ fn model_has_declare_strict_and_namespace() {
 fn model_has_from_array_and_to_array() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -89,6 +94,7 @@ fn model_has_from_array_and_to_array() {
 fn model_datetime_uses_date_time_immutable() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -113,6 +119,7 @@ fn model_datetime_uses_date_time_immutable() {
 fn enum_has_backed_type_and_cases() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -129,6 +136,7 @@ fn enum_has_backed_type_and_cases() {
 fn client_has_psr18_constructor() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -146,6 +154,7 @@ fn client_has_psr18_constructor() {
 fn client_has_assert_successful_and_decode_json() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -167,6 +176,7 @@ fn client_has_assert_successful_and_decode_json() {
 fn client_throws_docblock() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -188,6 +198,7 @@ fn dry_run_models_mode_excludes_client_files() {
         &GenerateMode::Models,
         &Framework::Plain,
         None,
+        &PhpVersion::Php82,
     )
     .unwrap();
 
@@ -212,6 +223,7 @@ fn dry_run_all_files_start_with_php_open_tag() {
         &GenerateMode::All,
         &Framework::Plain,
         None,
+        &PhpVersion::Php82,
     )
     .unwrap();
 
@@ -223,4 +235,39 @@ fn dry_run_all_files_start_with_php_open_tag() {
             path.display()
         );
     }
+}
+
+// ─── PHP version conditional output ──────────────────────────────────────────
+
+#[test]
+fn php82_uses_readonly_class() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let content = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    assert!(content.contains("readonly final class Item"), "8.2 should use readonly class");
+    assert!(!content.contains("public readonly"), "8.2 should not have per-property readonly");
+}
+
+#[test]
+fn php81_uses_per_property_readonly() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php81,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let content = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    assert!(content.contains("final class Item"), "8.1 should use plain final class");
+    assert!(!content.contains("readonly final class"), "8.1 should not use readonly class");
+    assert!(content.contains("public readonly"), "8.1 should have per-property readonly");
 }

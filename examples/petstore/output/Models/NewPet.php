@@ -11,23 +11,23 @@ use App\Generated\Models\Tag;
 /**
  * Payload required to create or replace a pet record.
  */
-final class NewPet
+readonly final class NewPet
 {
     public function __construct(
         /**
          * Display name (required).
          */
-        public readonly string $name,
-        public readonly ?PetStatus $status = null,
-        public readonly ?Category $category = null,
+        public string $name,
+        public ?PetStatus $status = null,
+        public ?Category $category = null,
         /**
          * @var list<Tag>
          */
-        public readonly ?array $tags = null,
+        public ?array $tags = null,
         /**
          * @var list<string>
          */
-        public readonly ?array $photoUrls = null,
+        public ?array $photoUrls = null,
     ) {}
 
     /** @param array<string, mixed> $data */

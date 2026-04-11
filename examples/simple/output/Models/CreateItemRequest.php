@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Generated\Models;
 
-final class CreateItemRequest
+readonly final class CreateItemRequest
 {
     public function __construct(
-        public readonly string $name,
-        public readonly ?string $description = null,
+        public string $name,
+        public ?string $description = null,
     ) {}
 
     /** @param array<string, mixed> $data */

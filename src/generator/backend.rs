@@ -4,6 +4,7 @@
 //! Concrete implementations live in `php::plain` and `php::laravel`.
 
 use crate::cli::GenerateMode;
+use crate::config::PhpVersion;
 use crate::ir::ResolvedSpec;
 use anyhow::Result;
 use std::collections::BTreeMap;
@@ -14,6 +15,7 @@ use std::path::{Path, PathBuf};
 pub struct CodegenContext<'a> {
     pub spec: &'a ResolvedSpec,
     pub namespace: &'a str,
+    pub php_version: &'a PhpVersion,
 }
 
 pub struct RenderedFile {

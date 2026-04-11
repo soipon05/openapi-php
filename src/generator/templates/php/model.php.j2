@@ -15,7 +15,11 @@ use {{ namespace }}\Models\{{ import }};
  * {{ description }}
  */
 {% endif %}
+{% if use_readonly_class %}
+readonly final class {{ name }}
+{% else %}
 final class {{ name }}
+{% endif %}
 {
 {% if properties %}
     public function __construct(
@@ -34,7 +38,11 @@ final class {{ name }}
          * {{ prop.description }}
          */
 {% endif %}
+{% if use_readonly_class %}
+        public {{ prop.php_type }} ${{ prop.camel }}{% if not prop.required %} = null{% endif %},
+{% else %}
         public readonly {{ prop.php_type }} ${{ prop.camel }}{% if not prop.required %} = null{% endif %},
+{% endif %}
 {% endfor %}
     ) {}
 

@@ -132,6 +132,7 @@ impl Args {
                     namespace,
                     mode,
                     framework: merged.framework,
+                    php_version: merged.php_version,
                     templates_dir: merged.templates,
                     dry_run,
                     diff,
@@ -154,6 +155,7 @@ struct GenerateOptions {
     namespace: String,
     mode: GenerateMode,
     framework: Framework,
+    php_version: PhpVersion,
     templates_dir: Option<PathBuf>,
     dry_run: bool,
     diff: bool,
@@ -169,6 +171,7 @@ fn run_generate_once(options: &GenerateOptions) -> Result<bool> {
             options.mode.clone(),
             options.framework.clone(),
             options.templates_dir.as_deref(),
+            &options.php_version,
         )?;
         return Ok(false);
     }
@@ -181,6 +184,7 @@ fn run_generate_once(options: &GenerateOptions) -> Result<bool> {
             options.mode.clone(),
             options.framework.clone(),
             options.templates_dir.as_deref(),
+            &options.php_version,
         );
     }
 
@@ -192,6 +196,7 @@ fn run_generate_once(options: &GenerateOptions) -> Result<bool> {
         options.mode.clone(),
         options.framework.clone(),
         options.templates_dir.as_deref(),
+        &options.php_version,
     )?;
     Ok(false)
 }

@@ -12,49 +12,49 @@ use App\Generated\Models\Tag;
  * A domesticated pet that extends Pet with owner contact information. Demonstrates allOf schema composition.
 
  */
-final class DomesticPet
+readonly final class DomesticPet
 {
     public function __construct(
         /**
          * Unique numeric identifier assigned by the server.
          */
-        public readonly int $id,
+        public int $id,
         /**
          * Display name of the pet.
          */
-        public readonly string $name,
-        public readonly ?PetStatus $status = null,
-        public readonly ?Category $category = null,
+        public string $name,
+        public ?PetStatus $status = null,
+        public ?Category $category = null,
         /**
          * Free-form labels associated with this pet.
          * @var list<Tag>
          */
-        public readonly ?array $tags = null,
+        public ?array $tags = null,
         /**
          * URLs of photos for this pet.
          * @var list<string>
          */
-        public readonly ?array $photoUrls = null,
+        public ?array $photoUrls = null,
         /**
          * ISO-8601 timestamp of when this record was created.
          */
-        public readonly ?\DateTimeImmutable $createdAt = null,
+        public ?\DateTimeImmutable $createdAt = null,
         /**
          * ISO-8601 timestamp of the last update.
          */
-        public readonly ?\DateTimeImmutable $updatedAt = null,
+        public ?\DateTimeImmutable $updatedAt = null,
         /**
          * Name of the pet's owner.
          */
-        public readonly ?string $ownerName = null,
+        public ?string $ownerName = null,
         /**
          * Contact e-mail for the owner.
          */
-        public readonly ?string $ownerEmail = null,
+        public ?string $ownerEmail = null,
         /**
          * Whether the pet's vaccinations are up to date.
          */
-        public readonly ?bool $vaccinated = null,
+        public ?bool $vaccinated = null,
     ) {}
 
     /** @param array<string, mixed> $data */

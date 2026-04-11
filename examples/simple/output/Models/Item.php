@@ -6,14 +6,14 @@ namespace App\Generated\Models;
 
 use App\Generated\Models\ItemStatus;
 
-final class Item
+readonly final class Item
 {
     public function __construct(
-        public readonly int $id,
-        public readonly string $name,
-        public readonly ?string $description = null,
-        public readonly ?ItemStatus $status = null,
-        public readonly ?\DateTimeImmutable $createdAt = null,
+        public int $id,
+        public string $name,
+        public ?string $description = null,
+        public ?ItemStatus $status = null,
+        public ?\DateTimeImmutable $createdAt = null,
     ) {}
 
     /** @param array<string, mixed> $data */

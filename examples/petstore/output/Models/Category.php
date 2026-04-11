@@ -7,17 +7,17 @@ namespace App\Generated\Models;
 /**
  * A grouping category for pets (e.g. Dogs, Cats).
  */
-final class Category
+readonly final class Category
 {
     public function __construct(
         /**
          * Category identifier.
          */
-        public readonly ?int $id = null,
+        public ?int $id = null,
         /**
          * Human-readable category name.
          */
-        public readonly ?string $name = null,
+        public ?string $name = null,
     ) {}
 
     /** @param array<string, mixed> $data */

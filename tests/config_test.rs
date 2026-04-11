@@ -13,7 +13,7 @@ fn config_defaults_when_no_file() {
     assert_eq!(config.namespace, "App\\Generated");
     assert_eq!(config.output, None);
     assert_eq!(config.framework, Framework::Plain);
-    assert_eq!(config.php_version, PhpVersion::Php81);
+    assert_eq!(config.php_version, PhpVersion::Php82);
     assert_eq!(config.input, None);
 }
 
@@ -27,7 +27,7 @@ fn config_load_missing_file() {
     assert_eq!(config.namespace, "App\\Generated");
     assert_eq!(config.output, None);
     assert_eq!(config.framework, Framework::Plain);
-    assert_eq!(config.php_version, PhpVersion::Php81);
+    assert_eq!(config.php_version, PhpVersion::Php82);
 }
 
 // ─── Config::from_toml_str() ──────────────────────────────────────────────
@@ -58,7 +58,7 @@ fn config_toml_parse_defaults_for_missing_fields() {
     assert_eq!(config.namespace, "App\\Generated");
     assert_eq!(config.output, None);
     assert_eq!(config.framework, Framework::Plain);
-    assert_eq!(config.php_version, PhpVersion::Php81);
+    assert_eq!(config.php_version, PhpVersion::Php82);
     assert_eq!(config.input, None);
 }
 
@@ -90,6 +90,27 @@ fn config_toml_unknown_php_version_errors() {
 php_version = "7.4"
 "#;
     assert!(Config::from_toml_str(toml).is_err());
+}
+
+#[test]
+fn config_toml_parse_php84() {
+    let toml = r#"
+[generator]
+php_version = "8.4"
+"#;
+    let config = Config::from_toml_str(toml).unwrap();
+    assert_eq!(config.php_version, PhpVersion::Php84);
+    assert!(config.php_version.supports_readonly_class());
+}
+
+#[test]
+fn php81_does_not_support_readonly_class() {
+    assert!(!PhpVersion::Php81.supports_readonly_class());
+}
+
+#[test]
+fn php82_supports_readonly_class() {
+    assert!(PhpVersion::Php82.supports_readonly_class());
 }
 
 // ─── merge_cli: CLI values override config ────────────────────────────────

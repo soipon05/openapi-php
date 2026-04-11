@@ -3,6 +3,7 @@
 //! Integration tests for LaravelPhpBackend.
 //! Uses `run_dry()` to generate PHP into memory without touching the filesystem.
 
+use openapi_php::config::PhpVersion;
 use openapi_php::generator::{CodegenBackend, CodegenContext, LaravelPhpBackend};
 use openapi_php::parser;
 use std::path::{Path, PathBuf};
@@ -18,6 +19,7 @@ fn fixture(name: &str) -> PathBuf {
 fn laravel_generates_form_requests() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -49,6 +51,7 @@ fn laravel_generates_form_requests() {
 fn laravel_generates_resources() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -79,6 +82,7 @@ fn laravel_generates_resources() {
 fn laravel_generates_routes() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -112,6 +116,7 @@ fn laravel_generates_routes() {
 fn laravel_still_generates_models() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -144,6 +149,7 @@ fn laravel_still_generates_models() {
 fn laravel_generates_controller_file() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -162,6 +168,7 @@ fn laravel_generates_controller_file() {
 fn laravel_controller_has_correct_namespace_and_class() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -183,6 +190,7 @@ fn laravel_controller_has_correct_namespace_and_class() {
 fn laravel_controller_has_index_and_destroy_returning_json_response() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -207,6 +215,7 @@ fn laravel_controller_has_index_and_destroy_returning_json_response() {
 fn laravel_controller_has_show_with_resource_return() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -227,6 +236,7 @@ fn laravel_controller_has_show_with_resource_return() {
 fn laravel_controller_store_has_form_request_param() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -248,6 +258,7 @@ fn laravel_controller_store_has_form_request_param() {
 fn laravel_controller_has_phpdoc_comments() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
     };
@@ -269,6 +280,7 @@ fn laravel_controller_has_phpdoc_comments() {
 fn laravel_petstore_controller_has_all_crud_methods() {
     let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
     let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App",
     };
