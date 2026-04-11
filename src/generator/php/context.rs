@@ -4,7 +4,7 @@
 //! Builder functions (`build_model_ctx`, `build_enum_ctx`, `build_client_ctx`)
 //! transform IR types into these template-ready structures.
 
-use crate::ir::{EnumBackingType, EnumSchema, ObjectSchema, ResolvedSchema, ResolvedSpec};
+use crate::ir::{EnumBackingType, EnumSchema, ObjectSchema, ResolvedSchema, ResolvedSpec, UnionSchema};
 use indexmap::IndexMap;
 use serde::Serialize;
 use std::collections::BTreeSet;
@@ -91,6 +91,28 @@ pub struct EndpointCtx {
 pub struct QueryParamCtx {
     pub name: String,
     pub php_name: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UnionCtx {
+    pub name: String,
+    pub namespace: String,
+    pub description: Option<String>,
+    /// discriminator.propertyName, e.g. "type"
+    pub discriminator: String,
+    /// PHP union type string, e.g. "Dog|Cat"
+    pub variant_type: String,
+    pub variants: Vec<UnionVariantCtx>,
+    /// Other class names that need `use` imports
+    pub use_imports: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UnionVariantCtx {
+    /// The discriminator value to match on, e.g. "dog" (from mapping) or "Dog" (schema name)
+    pub match_key: String,
+    /// PHP class name, e.g. "Dog"
+    pub class_name: String,
 }
 
 // ─── Context builders ──────────────────────────────────────────────────────
@@ -228,6 +250,71 @@ pub fn build_enum_ctx(name: &str, schema: &EnumSchema, namespace: &str) -> EnumC
         backing_type: backing_type.to_string(),
         variants,
     }
+}
+
+/// Returns `None` when the union cannot be code-generated as a discriminated container:
+/// - No discriminator declared, OR
+/// - Any variant is not a named `$ref` (inline / primitive variants are unsupported)
+pub fn build_union_ctx(name: &str, schema: &UnionSchema, namespace: &str) -> Option<UnionCtx> {
+    let disc = schema.discriminator.as_ref()?;
+
+    // All variants must be named $ref
+    let class_names: Vec<String> = schema
+        .variants
+        .iter()
+        .filter_map(|v| {
+            if let ResolvedSchema::Ref(n) = v {
+                Some(n.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+    if class_names.len() != schema.variants.len() || class_names.is_empty() {
+        return None;
+    }
+
+    let variants: Vec<UnionVariantCtx> = class_names
+        .iter()
+        .map(|class_name| {
+            // If mapping is present, find the key whose value is this class name.
+            // If absent, OAS spec says use the schema name as-is.
+            let match_key = if schema.discriminator_mapping.is_empty() {
+                class_name.clone()
+            } else {
+                schema
+                    .discriminator_mapping
+                    .iter()
+                    .find(|(_, v)| v.as_str() == class_name.as_str())
+                    .map(|(k, _)| k.clone())
+                    .unwrap_or_else(|| class_name.clone())
+            };
+            UnionVariantCtx {
+                match_key,
+                class_name: class_name.clone(),
+            }
+        })
+        .collect();
+
+    let variant_type = class_names.join("|");
+
+    let mut refs = BTreeSet::new();
+    for cn in &class_names {
+        if cn != name {
+            refs.insert(cn.clone());
+        }
+    }
+    let use_imports: Vec<String> = refs.into_iter().collect();
+
+    Some(UnionCtx {
+        name: name.to_string(),
+        namespace: namespace.to_string(),
+        description: schema.description.clone(),
+        discriminator: disc.clone(),
+        variant_type,
+        variants,
+        use_imports,
+    })
 }
 
 pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {

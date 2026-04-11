@@ -344,7 +344,16 @@ impl<'a> Resolver<'a> {
 
         let mut variants = Vec::new();
         for ror in &variants_raw {
-            variants.push(self.resolve_schema_or_ref(ror)?);
+            // Preserve $ref as Ref(name) — same pattern as resolve_object/resolve_array.
+            let resolved = match ror {
+                RawOrRef::Ref { ref_path } => {
+                    let name = ref_name(ref_path).to_string();
+                    self.resolve_named_schema_for_ref(&name, ref_path)?;
+                    ResolvedSchema::Ref(name.into())
+                }
+                _ => self.resolve_schema_or_ref(ror)?,
+            };
+            variants.push(resolved);
         }
 
         let discriminator = schema
@@ -352,9 +361,22 @@ impl<'a> Resolver<'a> {
             .as_ref()
             .map(|d| d.property_name.clone());
 
+        // mapping: discriminator value → schema name (strip $ref prefix if present)
+        let discriminator_mapping = schema
+            .discriminator
+            .as_ref()
+            .map(|d| {
+                d.mapping
+                    .iter()
+                    .map(|(k, v)| (k.clone(), ref_name(v).to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
         Ok(ResolvedSchema::Union(UnionSchema {
             variants,
             discriminator,
+            discriminator_mapping,
             description: schema.description.clone(),
         }))
     }

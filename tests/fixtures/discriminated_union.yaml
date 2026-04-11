@@ -1,0 +1,49 @@
+openapi: "3.0.3"
+info:
+  title: Discriminated Union Test
+  version: "0.1.0"
+paths: {}
+components:
+  schemas:
+    Dog:
+      type: object
+      required: [type, name]
+      properties:
+        type:
+          type: string
+        name:
+          type: string
+
+    Cat:
+      type: object
+      required: [type, lives]
+      properties:
+        type:
+          type: string
+        lives:
+          type: integer
+
+    # Discriminated union WITH explicit mapping (value != schema name)
+    Pet:
+      oneOf:
+        - $ref: '#/components/schemas/Dog'
+        - $ref: '#/components/schemas/Cat'
+      discriminator:
+        propertyName: type
+        mapping:
+          dog: '#/components/schemas/Dog'
+          cat: '#/components/schemas/Cat'
+
+    # Discriminated union WITHOUT mapping (match key = schema name as-is per OAS spec)
+    PetNoMapping:
+      oneOf:
+        - $ref: '#/components/schemas/Dog'
+        - $ref: '#/components/schemas/Cat'
+      discriminator:
+        propertyName: type
+
+    # Union WITHOUT discriminator — should produce NO file
+    PetAny:
+      anyOf:
+        - $ref: '#/components/schemas/Dog'
+        - $ref: '#/components/schemas/Cat'

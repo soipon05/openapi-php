@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Petstore\Models;
+namespace App\Generated\Models;
 
 /**
  * Generic envelope returned by some store operations.

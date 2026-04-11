@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Petstore\Http\Resources;
+namespace App\Generated\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Petstore\Models\NewPet */
+/** @mixin \App\Generated\Models\NewPet */
 class NewPetResource extends JsonResource
 {
     /** @return array<string, mixed> */

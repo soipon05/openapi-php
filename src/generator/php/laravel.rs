@@ -5,7 +5,7 @@
 
 use crate::cli::GenerateMode;
 use crate::generator::backend::{CodegenBackend, CodegenContext, RenderedFile};
-use crate::generator::php::context::{build_enum_ctx, build_model_ctx};
+use crate::generator::php::context::{build_enum_ctx, build_model_ctx, build_union_ctx};
 use crate::ir::{
     EnumBackingType, HttpMethod, ObjectSchema, PhpPrimitive, ResolvedEndpoint, ResolvedParam,
     ResolvedSchema, ResolvedSpec,
@@ -133,6 +133,13 @@ impl LaravelPhpBackend {
             "laravel/controller.php.j2",
             include_str!("../templates/php/laravel/controller.php.j2"),
         )?;
+        add_template_with_override(
+            &mut env,
+            templates_dir,
+            "union",
+            "union.php.j2",
+            include_str!("../templates/php/union.php.j2"),
+        )?;
         Ok(Self { env })
     }
 }
@@ -198,7 +205,22 @@ impl CodegenBackend for LaravelPhpBackend {
                         content,
                     });
                 }
-                // Union, Array, Primitive have no standalone PHP file representation
+                ResolvedSchema::Union(u) => {
+                    // Union DTOs are generated as discriminated containers (Models/ only).
+                    // No FormRequest or JsonResource is generated for union types.
+                    if let Some(union_ctx) = build_union_ctx(name, u, ctx.namespace) {
+                        let content = self
+                            .env
+                            .get_template("union")?
+                            .render(Value::from_serialize(&union_ctx))?;
+                        files.push(RenderedFile {
+                            rel_path: PathBuf::from(format!("Models/{name}.php")),
+                            content,
+                        });
+                    }
+                    // discriminator absent or non-ref variants → skip
+                }
+                // Array, Primitive have no standalone PHP file representation
                 _ => {}
             }
         }

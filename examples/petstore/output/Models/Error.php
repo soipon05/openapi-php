@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Petstore\Models;
+namespace App\Generated\Models;
 
 /**
  * Standard error payload returned on 4xx / 5xx responses.
