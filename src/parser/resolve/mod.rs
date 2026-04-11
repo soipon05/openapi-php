@@ -1,3 +1,9 @@
+//! Resolver: transforms a `RawOpenApi` tree into a fully resolved `ResolvedSpec` IR.
+//!
+//! Handles `$ref` resolution, `allOf` merging, `anyOf`/`oneOf` unions, and
+//! parameter inheritance (path-level + operation-level, with operation winning).
+//! Circular `$ref` chains are detected and reported as `ResolveError::CircularRef`.
+
 use std::collections::HashSet;
 
 use anyhow::Result;
@@ -13,14 +19,7 @@ use crate::parser::raw::types::{
     EnumValue, OpenApi as RawOpenApi, Operation, Parameter, ParameterLocation, RawOrRef,
     RequestBody, Response, Schema, SchemaType,
 };
-
-// ---------------------------------------------------------------------------
-// PHP reserved words — appended with `_` when used as variable/method names
-// ---------------------------------------------------------------------------
-const PHP_RESERVED: &[&str] = &[
-    "array", "list", "string", "int", "float", "bool", "null", "true", "false", "match", "fn",
-    "class", "interface", "enum", "default", "return", "echo", "print", "unset", "isset", "empty",
-];
+use crate::php_utils::{escape_reserved, to_camel_case, to_pascal_case};
 
 // ---------------------------------------------------------------------------
 // Public entry-point
@@ -113,7 +112,11 @@ impl<'a> Resolver<'a> {
 
     /// Core resolver: `name` is the bare schema name, `ref_path` is the full
     /// `$ref` string used in error messages.
-    fn resolve_named_schema_for_ref(&mut self, name: &str, ref_path: &str) -> Result<ResolvedSchema> {
+    fn resolve_named_schema_for_ref(
+        &mut self,
+        name: &str,
+        ref_path: &str,
+    ) -> Result<ResolvedSchema> {
         if let Some(cached) = self.resolved.get(name) {
             return Ok(cached.clone());
         }
@@ -139,7 +142,9 @@ impl<'a> Resolver<'a> {
         self.in_progress.insert(name.to_string());
 
         let resolved = match raw_ror {
-            RawOrRef::Ref { ref_path: inner_ref } => {
+            RawOrRef::Ref {
+                ref_path: inner_ref,
+            } => {
                 if !inner_ref.starts_with("#/components/schemas/") {
                     return Err(ResolveError::InvalidRefFormat {
                         ref_path: inner_ref,
@@ -442,8 +447,9 @@ impl<'a> Resolver<'a> {
     }
 
     fn build_resolved_param(&mut self, param: Parameter) -> Result<ResolvedParam> {
-        let required =
-            param.required.unwrap_or(param.location == ParameterLocation::Path);
+        let required = param
+            .required
+            .unwrap_or(param.location == ParameterLocation::Path);
         let php_name = escape_reserved(&to_camel_case(&param.name));
 
         let schema = if let Some(ror) = param.schema {
@@ -487,7 +493,16 @@ impl<'a> Resolver<'a> {
             .cloned();
 
         let schema = if let Some(ror) = schema_ror {
-            self.resolve_schema_or_ref(&ror)?
+            // Preserve the schema name so controller/client generators can derive
+            // `XxxRequest` class names from the ref.
+            match ror {
+                RawOrRef::Ref { ref_path } => {
+                    let name = ref_name(&ref_path).to_string();
+                    self.resolve_named_schema_for_ref(&name, &ref_path)?; // validate exists
+                    ResolvedSchema::Ref(name.into())
+                }
+                _ => self.resolve_schema_or_ref(&ror)?,
+            }
         } else {
             mixed()
         };
@@ -539,6 +554,13 @@ impl<'a> Resolver<'a> {
             .cloned();
 
         match schema_ror {
+            // Preserve the schema name so controller/client generators can derive
+            // `XxxResource` / `XxxRequest` class names from the ref.
+            Some(RawOrRef::Ref { ref_path }) => {
+                let name = ref_name(&ref_path).to_string();
+                self.resolve_named_schema_for_ref(&name, &ref_path)?; // validate exists
+                Ok(Some(ResolvedSchema::Ref(name.into())))
+            }
             Some(ror) => Ok(Some(self.resolve_schema_or_ref(&ror)?)),
             None => Ok(None),
         }
@@ -645,46 +667,4 @@ fn derive_operation_id(method: &HttpMethod, path: &str) -> String {
         .map(to_pascal_case)
         .collect();
     format!("{method_part}{path_part}")
-}
-
-pub fn to_camel_case(s: &str) -> String {
-    let mut out = String::new();
-    let mut cap_next = false;
-    for (i, ch) in s.chars().enumerate() {
-        if ch == '_' || ch == '-' {
-            cap_next = true;
-        } else if cap_next {
-            out.extend(ch.to_uppercase());
-            cap_next = false;
-        } else if i == 0 {
-            out.extend(ch.to_lowercase());
-        } else {
-            out.push(ch);
-        }
-    }
-    out
-}
-
-pub fn to_pascal_case(s: &str) -> String {
-    let mut out = String::new();
-    let mut cap_next = true;
-    for ch in s.chars() {
-        if ch == '_' || ch == '-' || ch == ' ' {
-            cap_next = true;
-        } else if cap_next {
-            out.extend(ch.to_uppercase());
-            cap_next = false;
-        } else {
-            out.push(ch);
-        }
-    }
-    out
-}
-
-pub fn escape_reserved(name: &str) -> String {
-    if PHP_RESERVED.contains(&name) {
-        format!("{name}_")
-    } else {
-        name.to_string()
-    }
 }

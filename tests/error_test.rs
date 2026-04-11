@@ -6,7 +6,9 @@ use std::path::Path;
 fn error_missing_file() {
     let path = Path::new("tests/fixtures/does_not_exist.yaml");
     let err = parser::load(path).unwrap_err();
-    let parse_err = err.downcast_ref::<ParseError>().expect("expected ParseError");
+    let parse_err = err
+        .downcast_ref::<ParseError>()
+        .expect("expected ParseError");
     assert!(
         matches!(parse_err, ParseError::Io { .. }),
         "expected Io variant, got: {parse_err}"
@@ -21,7 +23,9 @@ fn error_missing_file() {
 fn error_bad_yaml() {
     let path = Path::new("tests/fixtures/bad_yaml.yaml");
     let err = parser::load(path).unwrap_err();
-    let parse_err = err.downcast_ref::<ParseError>().expect("expected ParseError");
+    let parse_err = err
+        .downcast_ref::<ParseError>()
+        .expect("expected ParseError");
     assert!(
         matches!(parse_err, ParseError::Yaml { .. }),
         "expected Yaml variant, got: {parse_err}"

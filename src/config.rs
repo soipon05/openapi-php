@@ -28,6 +28,7 @@ pub struct Config {
     pub output: Option<PathBuf>,
     pub framework: Framework,
     pub php_version: PhpVersion,
+    pub templates: Option<PathBuf>,
     pub input: Option<PathBuf>,
 }
 
@@ -38,6 +39,7 @@ impl Default for Config {
             output: None,
             framework: Framework::default(),
             php_version: PhpVersion::default(),
+            templates: None,
             input: None,
         }
     }
@@ -50,6 +52,7 @@ pub struct CliOverrides {
     pub output: Option<PathBuf>,
     pub framework: Option<Framework>,
     pub php_version: Option<PhpVersion>,
+    pub templates: Option<PathBuf>,
     pub input: Option<PathBuf>,
 }
 
@@ -69,6 +72,7 @@ struct RawGenerator {
     output: Option<String>,
     framework: Option<String>,
     php_version: Option<String>,
+    templates: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -94,14 +98,15 @@ impl Config {
 
     /// Parse a TOML string directly (useful for testing).
     pub fn from_toml_str(content: &str) -> Result<Config> {
-        let raw: RawToml =
-            toml::from_str(content).context("Failed to parse openapi-php.toml")?;
+        let raw: RawToml = toml::from_str(content).context("Failed to parse openapi-php.toml")?;
 
         let framework = match raw.generator.framework.as_deref() {
             Some("plain") | None => Framework::Plain,
             Some("laravel") => Framework::Laravel,
             Some("symfony") => Framework::Symfony,
-            Some(other) => bail!("Unknown framework '{other}'. Valid values: plain, laravel, symfony"),
+            Some(other) => {
+                bail!("Unknown framework '{other}'. Valid values: plain, laravel, symfony")
+            }
         };
 
         let php_version = match raw.generator.php_version.as_deref() {
@@ -119,6 +124,7 @@ impl Config {
             output: raw.generator.output.map(PathBuf::from),
             framework,
             php_version,
+            templates: raw.generator.templates.map(PathBuf::from),
             input: raw.input.path.map(PathBuf::from),
         })
     }
@@ -130,6 +136,7 @@ impl Config {
             output: cli.output.or(self.output),
             framework: cli.framework.unwrap_or(self.framework),
             php_version: cli.php_version.unwrap_or(self.php_version),
+            templates: cli.templates.or(self.templates),
             input: cli.input.or(self.input),
         }
     }

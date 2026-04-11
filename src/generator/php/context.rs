@@ -1,9 +1,17 @@
-use crate::ir::{
-    EnumBackingType, EnumSchema, ObjectSchema, PhpPrimitive, ResolvedParam, ResolvedSchema,
-    ResolvedSpec,
-};
+//! Template context structs and builder functions.
+//!
+//! Each `*Ctx` struct is `Serialize` and passed directly to a minijinja template.
+//! Builder functions (`build_model_ctx`, `build_enum_ctx`, `build_client_ctx`)
+//! transform IR types into these template-ready structures.
+
+use crate::ir::{EnumBackingType, EnumSchema, ObjectSchema, ResolvedSchema, ResolvedSpec};
 use serde::Serialize;
 use std::collections::BTreeSet;
+
+use super::helpers::{
+    ReturnKind, build_path_expr, collect_refs, escape_reserved, from_array_expr, items_type_name,
+    resolve_return, schema_to_php_type, to_array_expr, to_camel_case,
+};
 
 // ─── Context structs (Serialize → minijinja) ───────────────────────────────
 
@@ -91,10 +99,7 @@ pub fn build_model_ctx(name: &str, schema: &ObjectSchema, namespace: &str) -> Mo
     for (_, prop) in &schema.properties {
         collect_refs(&prop.schema, &mut refs);
     }
-    let use_imports: Vec<String> = refs
-        .into_iter()
-        .filter(|r| r.as_str() != name)
-        .collect();
+    let use_imports: Vec<String> = refs.into_iter().filter(|r| r.as_str() != name).collect();
 
     let properties = schema
         .properties
@@ -245,210 +250,4 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
         model_refs,
         endpoints,
     }
-}
-
-// ─── PHP helper functions ──────────────────────────────────────────────────
-
-pub fn schema_to_php_type(schema: &ResolvedSchema, nullable: bool) -> String {
-    let (base, schema_nullable) = match schema {
-        ResolvedSchema::Primitive(p) => {
-            let base = match p.php_type {
-                PhpPrimitive::DateTime => "\\DateTimeImmutable",
-                PhpPrimitive::String => "string",
-                PhpPrimitive::Int => "int",
-                PhpPrimitive::Float => "float",
-                PhpPrimitive::Bool => "bool",
-                PhpPrimitive::Mixed => "mixed",
-            };
-            (base.to_string(), p.nullable)
-        }
-        ResolvedSchema::Object(_) | ResolvedSchema::Array(_) => ("array".to_string(), false),
-        ResolvedSchema::Enum(e) => match e.backing_type {
-            EnumBackingType::String => ("string".to_string(), false),
-            EnumBackingType::Int => ("int".to_string(), false),
-        },
-        ResolvedSchema::Union(_) => ("mixed".to_string(), false),
-        ResolvedSchema::Ref(name) => (name.to_string(), false),
-    };
-    let is_nullable = nullable || schema_nullable;
-    if is_nullable && base != "mixed" {
-        format!("?{base}")
-    } else {
-        base
-    }
-}
-
-pub fn to_camel_case(s: &str) -> String {
-    let mut out = String::new();
-    let mut cap_next = false;
-    for (i, ch) in s.chars().enumerate() {
-        if ch == '_' || ch == '-' {
-            cap_next = true;
-        } else if cap_next {
-            out.extend(ch.to_uppercase());
-            cap_next = false;
-        } else if i == 0 {
-            out.extend(ch.to_lowercase());
-        } else {
-            out.push(ch);
-        }
-    }
-    out
-}
-
-const PHP_RESERVED: &[&str] = &[
-    "array", "list", "string", "int", "float", "bool", "null", "true", "false", "match", "fn",
-    "class", "interface", "enum", "default", "return", "echo", "print", "unset", "isset", "empty",
-];
-
-pub fn escape_reserved(name: &str) -> String {
-    if PHP_RESERVED.contains(&name) {
-        format!("{name}_")
-    } else {
-        name.to_string()
-    }
-}
-
-fn collect_refs(schema: &ResolvedSchema, refs: &mut BTreeSet<String>) {
-    match schema {
-        ResolvedSchema::Ref(name) => {
-            refs.insert(name.to_string());
-        }
-        ResolvedSchema::Array(a) => collect_refs(&a.items, refs),
-        ResolvedSchema::Object(o) => {
-            for (_, prop) in &o.properties {
-                collect_refs(&prop.schema, refs);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn items_type_name(schema: &ResolvedSchema) -> String {
-    match schema {
-        ResolvedSchema::Primitive(p) => match p.php_type {
-            PhpPrimitive::DateTime => "\\DateTimeImmutable".to_string(),
-            PhpPrimitive::String => "string".to_string(),
-            PhpPrimitive::Int => "int".to_string(),
-            PhpPrimitive::Float => "float".to_string(),
-            PhpPrimitive::Bool => "bool".to_string(),
-            PhpPrimitive::Mixed => "mixed".to_string(),
-        },
-        ResolvedSchema::Ref(name) => name.to_string(),
-        ResolvedSchema::Object(_) => "array<string, mixed>".to_string(),
-        _ => "mixed".to_string(),
-    }
-}
-
-fn inner_from_array(key: &str, schema: &ResolvedSchema) -> String {
-    match schema {
-        ResolvedSchema::Primitive(p) => match p.php_type {
-            PhpPrimitive::Int => format!("(int) $data['{key}']"),
-            PhpPrimitive::Float => format!("(float) $data['{key}']"),
-            PhpPrimitive::Bool => format!("(bool) $data['{key}']"),
-            PhpPrimitive::DateTime => {
-                format!("new \\DateTimeImmutable($data['{key}'])")
-            }
-            PhpPrimitive::String | PhpPrimitive::Mixed => format!("(string) $data['{key}']"),
-        },
-        ResolvedSchema::Ref(name) => format!("{name}::fromArray($data['{key}'])"),
-        ResolvedSchema::Array(arr) => match arr.items.as_ref() {
-            ResolvedSchema::Ref(rname) => {
-                format!("array_map(fn($item) => {rname}::fromArray($item), $data['{key}'])")
-            }
-            _ => format!("(array) $data['{key}']"),
-        },
-        ResolvedSchema::Object(_) => format!("(array) $data['{key}']"),
-        _ => format!("$data['{key}']"),
-    }
-}
-
-fn from_array_expr(key: &str, schema: &ResolvedSchema, nullable: bool) -> String {
-    if nullable {
-        let inner = inner_from_array(key, schema);
-        format!("isset($data['{key}']) ? {inner} : null")
-    } else {
-        match schema {
-            ResolvedSchema::Array(arr) => match arr.items.as_ref() {
-                ResolvedSchema::Ref(rname) => {
-                    format!(
-                        "array_map(fn($item) => {rname}::fromArray($item), $data['{key}'] ?? [])"
-                    )
-                }
-                _ => format!("(array) ($data['{key}'] ?? [])"),
-            },
-            _ => inner_from_array(key, schema),
-        }
-    }
-}
-
-fn to_array_expr(_key: &str, camel: &str, schema: &ResolvedSchema, nullable: bool) -> String {
-    match schema {
-        ResolvedSchema::Primitive(p) if p.php_type == PhpPrimitive::DateTime => {
-            if nullable {
-                format!("$this->{camel}?->format(\\DateTimeInterface::RFC3339)")
-            } else {
-                format!("$this->{camel}->format(\\DateTimeInterface::RFC3339)")
-            }
-        }
-        ResolvedSchema::Ref(_) => {
-            if nullable {
-                format!("$this->{camel}?->toArray()")
-            } else {
-                format!("$this->{camel}->toArray()")
-            }
-        }
-        ResolvedSchema::Enum(_) => {
-            if nullable {
-                format!("$this->{camel}?->value")
-            } else {
-                format!("$this->{camel}->value")
-            }
-        }
-        _ => format!("$this->{camel}"),
-    }
-}
-
-// ─── Return kind helpers (shared with client context building) ─────────────
-
-enum ReturnKind {
-    Void,
-    Ref(String),
-    Array,
-}
-
-fn resolve_return(response: &Option<ResolvedSchema>) -> (String, ReturnKind) {
-    match response {
-        None => ("void".to_string(), ReturnKind::Void),
-        Some(ResolvedSchema::Ref(name)) => (name.to_string(), ReturnKind::Ref(name.to_string())),
-        Some(schema) => {
-            let php_type = schema_to_php_type(schema, false);
-            (php_type, ReturnKind::Array)
-        }
-    }
-}
-
-pub fn build_path_expr(path: &str, path_params: &[ResolvedParam]) -> String {
-    if path_params.is_empty() {
-        return format!("'{path}'");
-    }
-    let fmt = path
-        .split('/')
-        .map(|seg| {
-            if seg.starts_with('{') && seg.ends_with('}') {
-                "%s".to_string()
-            } else {
-                seg.to_string()
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("/");
-
-    let args: String = path_params
-        .iter()
-        .map(|p| format!("${}", p.php_name))
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    format!("sprintf('{fmt}', {args})")
 }

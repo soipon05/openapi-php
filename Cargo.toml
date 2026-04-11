@@ -35,6 +35,7 @@ minijinja = "2"
 
 # Diffing
 similar = { version = "2", features = ["text"] }
+notify = "7"
 
 [dev-dependencies]
 insta = { version = "1", features = ["yaml"] }

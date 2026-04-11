@@ -6,7 +6,7 @@
 
 use openapi_php::cli::GenerateMode;
 use openapi_php::config::Framework;
-use openapi_php::generator::{run_dry_filtered, CodegenBackend, CodegenContext, PlainPhpBackend};
+use openapi_php::generator::{CodegenBackend, CodegenContext, PlainPhpBackend, run_dry_filtered};
 use openapi_php::parser;
 use std::path::{Path, PathBuf};
 
@@ -26,7 +26,7 @@ fn run_dry_simple_returns_expected_paths() {
         spec: &spec,
         namespace: "App\\Test",
     };
-    let backend = PlainPhpBackend::new();
+    let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
 
     let paths: Vec<String> = files.keys().map(|p| p.display().to_string()).collect();
@@ -43,7 +43,7 @@ fn run_dry_petstore_returns_all_models() {
         spec: &spec,
         namespace: "App\\Test",
     };
-    let backend = PlainPhpBackend::new();
+    let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
 
     // At minimum: Pet, PetStatus, ApiClient
@@ -61,7 +61,7 @@ fn model_has_declare_strict_and_namespace() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let files = PlainPhpBackend::new().run_dry(&ctx).unwrap();
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
 
     assert!(item.contains("declare(strict_types=1);"));
@@ -76,7 +76,7 @@ fn model_has_from_array_and_to_array() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let files = PlainPhpBackend::new().run_dry(&ctx).unwrap();
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
 
     assert!(item.contains("public static function fromArray(array $data): self"));
@@ -92,10 +92,13 @@ fn model_datetime_uses_date_time_immutable() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let files = PlainPhpBackend::new().run_dry(&ctx).unwrap();
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
 
-    assert!(item.contains("\\DateTimeImmutable"), "Expected \\DateTimeImmutable type hint");
+    assert!(
+        item.contains("\\DateTimeImmutable"),
+        "Expected \\DateTimeImmutable type hint"
+    );
     assert!(
         item.contains("new \\DateTimeImmutable("),
         "Expected new \\DateTimeImmutable() in fromArray"
@@ -113,7 +116,7 @@ fn enum_has_backed_type_and_cases() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let files = PlainPhpBackend::new().run_dry(&ctx).unwrap();
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let status = files[&PathBuf::from("Models/ItemStatus.php")].as_str();
 
     assert!(status.contains("declare(strict_types=1);"));
@@ -129,7 +132,7 @@ fn client_has_psr18_constructor() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let files = PlainPhpBackend::new().run_dry(&ctx).unwrap();
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
 
     assert!(client.contains("use Psr\\Http\\Client\\ClientInterface;"));
@@ -146,12 +149,18 @@ fn client_has_assert_successful_and_decode_json() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let files = PlainPhpBackend::new().run_dry(&ctx).unwrap();
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
 
-    assert!(client.contains("assertSuccessful("), "Missing assertSuccessful helper");
+    assert!(
+        client.contains("assertSuccessful("),
+        "Missing assertSuccessful helper"
+    );
     assert!(client.contains("decodeJson("), "Missing decodeJson helper");
-    assert!(client.contains("JSON_THROW_ON_ERROR"), "Missing JSON_THROW_ON_ERROR");
+    assert!(
+        client.contains("JSON_THROW_ON_ERROR"),
+        "Missing JSON_THROW_ON_ERROR"
+    );
 }
 
 #[test]
@@ -161,7 +170,7 @@ fn client_throws_docblock() {
         spec: &spec,
         namespace: "App\\Generated",
     };
-    let files = PlainPhpBackend::new().run_dry(&ctx).unwrap();
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
 
     assert!(client.contains("@throws \\Psr\\Http\\Client\\ClientExceptionInterface"));
@@ -173,7 +182,8 @@ fn client_throws_docblock() {
 #[test]
 fn dry_run_models_mode_excludes_client_files() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
-    let files = run_dry_filtered(&spec, "App\\Test", &GenerateMode::Models, &Framework::Plain).unwrap();
+    let files =
+        run_dry_filtered(&spec, "App\\Test", &GenerateMode::Models, &Framework::Plain, None).unwrap();
 
     // Every returned path must be under Models/
     for path in files.keys() {
@@ -190,7 +200,8 @@ fn dry_run_models_mode_excludes_client_files() {
 #[test]
 fn dry_run_all_files_start_with_php_open_tag() {
     let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
-    let files = run_dry_filtered(&spec, "App\\Test", &GenerateMode::All, &Framework::Plain).unwrap();
+    let files =
+        run_dry_filtered(&spec, "App\\Test", &GenerateMode::All, &Framework::Plain, None).unwrap();
 
     assert!(!files.is_empty(), "Expected generated files");
     for (path, content) in &files {
