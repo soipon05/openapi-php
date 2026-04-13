@@ -17,7 +17,7 @@ final class {{ class_name }} extends \RuntimeException
         \Throwable $previous = null,
     ) {
         parent::__construct(
-            sprintf('HTTP %d: %s', $statusCode, $this->error->message ?? ''),
+            sprintf('HTTP %d', $statusCode),
             $statusCode,
             $previous,
         );

@@ -68,7 +68,7 @@ final class ApiClient
         $response = $this->httpClient->sendRequest($request);
 {% if ep.error_cases %}
         if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
-            $body = $this->decodeJson($response);
+            $errorBody = json_decode((string) $response->getBody(), true) ?? [];
             throw match ($response->getStatusCode()) {
 {% for ec in ep.error_cases %}
                 {{ ec.status_code }} => new Exceptions\{{ ec.exception_class }}({% if ec.error_expr %}{{ ec.error_expr }}{% endif %}),

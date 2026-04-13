@@ -41,7 +41,7 @@ pub trait CodegenBackend {
     fn filter_by_mode(&self, path: &Path, mode: &GenerateMode) -> bool {
         match mode {
             GenerateMode::Models => path.starts_with("Models"),
-            GenerateMode::Client => path.starts_with("Client"),
+            GenerateMode::Client => path.starts_with("Client") || path.starts_with("Exceptions"),
             GenerateMode::All => true,
         }
     }

@@ -389,9 +389,17 @@ pub fn build_exception_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Excepti
 
             let (error_model, error_use) = match &er.schema {
                 Some(ResolvedSchema::Ref(n)) => {
-                    let model = n.to_string();
-                    let use_path = format!("{namespace}\\Models\\{model}");
-                    (Some(model), Some(use_path))
+                    let is_enum = spec
+                        .schemas
+                        .get(n.as_ref())
+                        .is_some_and(|s| matches!(s, ResolvedSchema::Enum(_)));
+                    if is_enum {
+                        (None, None)
+                    } else {
+                        let model = n.to_string();
+                        let use_path = format!("{namespace}\\Models\\{model}");
+                        (Some(model), Some(use_path))
+                    }
                 }
                 _ => (None, None),
             };
@@ -422,7 +430,13 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
             }
             for er in &ep.error_responses {
                 if let Some(ResolvedSchema::Ref(n)) = &er.schema {
-                    refs.push(n.to_string());
+                    let is_enum = spec
+                        .schemas
+                        .get(n.as_ref())
+                        .is_some_and(|s| matches!(s, ResolvedSchema::Enum(_)));
+                    if !is_enum {
+                        refs.push(n.to_string());
+                    }
                 }
             }
             refs
@@ -479,7 +493,15 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                     let exception_class = format!("{operation_pascal}{suffix}");
                     let error_expr = match &er.schema {
                         Some(ResolvedSchema::Ref(n)) => {
-                            Some(format!("{n}::fromArray($body)"))
+                            let is_enum = spec
+                                .schemas
+                                .get(n.as_ref())
+                                .is_some_and(|s| matches!(s, ResolvedSchema::Enum(_)));
+                            if is_enum {
+                                None
+                            } else {
+                                Some(format!("{n}::fromArray($errorBody)"))
+                            }
                         }
                         _ => None,
                     };
