@@ -61,8 +61,13 @@ final class ApiClient
         $request = $this->requestFactory
             ->createRequest('{{ ep.method_str }}', $this->baseUrl . {{ ep.path_expr }});
 {% endif %}
+{% if ep.has_header_params %}
+{% for hp in ep.header_params %}
+        $request = $request->withHeader('{{ hp.name }}', (string) ${{ hp.php_name }});
+{% endfor %}
+{% endif %}
 {% if ep.has_request_body %}
-        $stream = $this->streamFactory->createStream(json_encode($body, JSON_THROW_ON_ERROR));
+        $stream = $this->streamFactory->createStream(json_encode({% if ep.request_body_is_dto %}$body->toArray(){% else %}$body{% endif %}, JSON_THROW_ON_ERROR));
         $request = $request->withBody($stream)->withHeader('Content-Type', 'application/json');
 {% endif %}
         $response = $this->httpClient->sendRequest($request);

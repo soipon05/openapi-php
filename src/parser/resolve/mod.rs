@@ -409,6 +409,7 @@ impl<'a> Resolver<'a> {
 
         let mut path_params = Vec::new();
         let mut query_params = Vec::new();
+        let mut header_params = Vec::new();
         for ror in param_map.into_values() {
             let raw = self.get_raw_param(&ror)?;
             let location = raw.location.clone();
@@ -416,7 +417,8 @@ impl<'a> Resolver<'a> {
             match location {
                 ParameterLocation::Path => path_params.push(resolved),
                 ParameterLocation::Query => query_params.push(resolved),
-                _ => {} // header/cookie ignored for now
+                ParameterLocation::Header => header_params.push(resolved),
+                _ => {} // cookie ignored for now
             }
         }
 
@@ -439,6 +441,7 @@ impl<'a> Resolver<'a> {
             tags: op.tags.clone(),
             path_params,
             query_params,
+            header_params,
             request_body,
             response,
             deprecated: op.deprecated.unwrap_or(false),

@@ -22,6 +22,7 @@ pub struct ResolvedEndpoint {
     pub tags: Vec<String>,
     pub path_params: Vec<ResolvedParam>,
     pub query_params: Vec<ResolvedParam>,
+    pub header_params: Vec<ResolvedParam>,
     pub request_body: Option<ResolvedRequestBody>,
     pub response: Option<ResolvedSchema>,
     pub deprecated: bool,

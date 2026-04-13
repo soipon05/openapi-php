@@ -84,8 +84,11 @@ pub struct EndpointCtx {
     pub deprecated: bool,
     pub query_params: Vec<QueryParamCtx>,
     pub has_query_params: bool,
+    pub header_params: Vec<QueryParamCtx>,
+    pub has_header_params: bool,
     pub path_expr: String,
     pub has_request_body: bool,
+    pub request_body_is_dto: bool,
     pub return_void: bool,
     /// Model class name for `Name::fromArray(...)` return
     pub return_ref: Option<String>,
@@ -461,6 +464,10 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 let t = schema_to_php_type(&p.schema, !p.required);
                 params.push(format!("{t} ${}", p.php_name));
             }
+            for p in &ep.header_params {
+                let t = schema_to_php_type(&p.schema, !p.required);
+                params.push(format!("{t} ${}", p.php_name));
+            }
             if let Some(rb) = &ep.request_body {
                 let t = schema_to_php_type(&rb.schema, !rb.required);
                 params.push(format!("{t} $body"));
@@ -471,6 +478,15 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
             let path_expr = build_path_expr(&ep.path, &ep.path_params);
             let query_params: Vec<QueryParamCtx> = ep
                 .query_params
+                .iter()
+                .map(|p| QueryParamCtx {
+                    name: p.name.clone(),
+                    php_name: p.php_name.clone(),
+                })
+                .collect();
+
+            let header_params: Vec<QueryParamCtx> = ep
+                .header_params
                 .iter()
                 .map(|p| QueryParamCtx {
                     name: p.name.clone(),
@@ -524,8 +540,14 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 deprecated: ep.deprecated,
                 has_query_params: !ep.query_params.is_empty(),
                 query_params,
+                has_header_params: !ep.header_params.is_empty(),
+                header_params,
                 path_expr,
                 has_request_body: ep.request_body.is_some(),
+                request_body_is_dto: matches!(
+                    ep.request_body.as_ref().map(|rb| &rb.schema),
+                    Some(ResolvedSchema::Ref(_))
+                ),
                 return_void,
                 return_ref,
                 return_array,
