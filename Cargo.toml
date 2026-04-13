@@ -37,6 +37,9 @@ minijinja = "2"
 similar = { version = "2", features = ["text"] }
 notify = "7"
 
+# Glob pattern matching
+glob = "0.3"
+
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = { version = "1", features = ["yaml"] }

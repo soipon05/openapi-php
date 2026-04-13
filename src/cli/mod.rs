@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
@@ -60,6 +60,17 @@ pub enum Command {
         /// Re-run generation when the input file changes
         #[arg(long)]
         watch: bool,
+
+        /// Glob pattern(s) for multiple spec files (alternative to --input).
+        /// Use with --namespace-prefix and --output for zero-config multi-spec generation.
+        /// Example: --inputs "specs/*.yml"
+        #[arg(long, conflicts_with = "input")]
+        inputs: Option<String>,
+
+        /// Namespace prefix used when deriving per-spec namespaces from filenames.
+        /// Required when --inputs is used. Example: --namespace-prefix "SaaSus\\"
+        #[arg(long, conflicts_with = "namespace")]
+        namespace_prefix: Option<String>,
     },
 
     /// Validate an OpenAPI spec file
@@ -102,10 +113,66 @@ impl Args {
                 dry_run,
                 diff,
                 watch,
+                inputs,
+                namespace_prefix,
             } => {
                 // Load config file (silently ignored if not found), then merge CLI flags on top.
                 let config = Config::load(&std::env::current_dir()?)?;
 
+                // ── Multi-spec path (--inputs) ──────────────────────────────────────
+                if let Some(glob_pattern) = inputs {
+                    if watch {
+                        bail!("--watch is not supported with --inputs");
+                    }
+
+                    let prefix = namespace_prefix
+                        .unwrap_or_else(|| "App\\Generated".to_string());
+                    let output_base = output.unwrap_or_else(|| PathBuf::from("generated"));
+
+                    let cli_framework =
+                        framework.as_deref().map(Framework::parse).transpose()?;
+                    let cli_php_version =
+                        php_version.as_deref().map(PhpVersion::parse).transpose()?;
+                    let framework_val =
+                        cli_framework.unwrap_or_else(|| config.framework.clone());
+                    let php_ver =
+                        cli_php_version.unwrap_or_else(|| config.php_version.clone());
+
+                    let mut paths = glob_expand(&glob_pattern)?;
+                    paths.sort();
+
+                    if paths.is_empty() {
+                        bail!("No files matched the pattern: {glob_pattern}");
+                    }
+
+                    let mut any_diff = false;
+                    for path in &paths {
+                        let derived = derive_namespace_fragment(path)?;
+                        let full_namespace = format!("{prefix}\\{derived}");
+                        let full_output = output_base.join(&derived);
+
+                        let opts = GenerateOptions {
+                            input_path: path.clone(),
+                            output_path: full_output,
+                            namespace: full_namespace,
+                            mode: mode.clone(),
+                            framework: framework_val.clone(),
+                            php_version: php_ver.clone(),
+                            templates_dir: templates.clone().or_else(|| config.templates.clone()),
+                            dry_run,
+                            diff,
+                        };
+                        let had = run_generate_once(&opts)?;
+                        any_diff |= had;
+                    }
+                    if any_diff {
+                        std::process::exit(1);
+                    }
+
+                    return Ok(());
+                }
+
+                // ── Single-spec path (--input) ──────────────────────────────────────
                 let cli_framework = framework.as_deref().map(Framework::parse).transpose()?;
                 let cli_php_version = php_version.as_deref().map(PhpVersion::parse).transpose()?;
 
@@ -270,5 +337,98 @@ fn normalize_path(path: &Path) -> PathBuf {
         std::env::current_dir()
             .unwrap_or_else(|_| PathBuf::from("."))
             .join(path)
+    }
+}
+
+// ─── Multi-spec helpers ────────────────────────────────────────────────────
+
+/// Expand a glob pattern to a sorted list of existing file paths.
+fn glob_expand(pattern: &str) -> Result<Vec<PathBuf>> {
+    let paths: Vec<PathBuf> = glob::glob(pattern)
+        .with_context(|| format!("Invalid glob pattern: {pattern}"))?
+        .filter_map(|r| r.ok())
+        .filter(|p| p.is_file())
+        .collect();
+    Ok(paths)
+}
+
+/// Derive a PascalCase namespace fragment from a spec filename.
+///
+/// Examples:
+/// - `ordersapi.yml`     → `"Orders"`
+/// - `paymentsapi.yml`   → `"Payments"`
+/// - `webhookapi.yml`    → `"Webhook"`
+/// - `catalog.yml`       → `"Catalog"`
+fn derive_namespace_fragment(path: &Path) -> Result<String> {
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| anyhow!("Cannot derive namespace from path: {}", path.display()))?;
+
+    // Strip trailing "api" (case-insensitive) unless the entire stem is "api"
+    let lower = stem.to_lowercase();
+    let base = if lower.ends_with("api") && lower.len() > 3 {
+        &stem[..stem.len() - 3]
+    } else {
+        stem
+    };
+
+    let fragment = to_pascal_case_simple(base);
+    if fragment.is_empty() {
+        bail!("Derived empty namespace from filename: {}", path.display());
+    }
+    Ok(fragment)
+}
+
+/// Convert a snake_case / kebab-case / plain lowercase string to PascalCase.
+/// Splits on `_`, `-`, and space; capitalises the first letter of each word.
+fn to_pascal_case_simple(s: &str) -> String {
+    let mut result = String::new();
+    let mut capitalize_next = true;
+    for ch in s.chars() {
+        if ch == '_' || ch == '-' || ch == ' ' {
+            capitalize_next = true;
+        } else if capitalize_next {
+            result.extend(ch.to_uppercase());
+            capitalize_next = false;
+        } else {
+            result.push(ch);
+        }
+    }
+    result
+}
+
+// ─── Tests ─────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn derive_namespace_fragment_strips_api_suffix() {
+        let cases = vec![
+            ("ordersapi.yml", "Orders"),
+            ("paymentsapi.yml", "Payments"),
+            ("webhookapi.yml", "Webhook"),
+            ("notificationsapi.yml", "Notifications"),
+            ("catalog.yml", "Catalog"),
+            ("api.yml", "Api"), // stem is exactly "api" — no stripping
+        ];
+        for (filename, expected) in cases {
+            let path = std::path::Path::new(filename);
+            assert_eq!(
+                derive_namespace_fragment(path).unwrap(),
+                expected,
+                "failed for {filename}"
+            );
+        }
+    }
+
+    #[test]
+    fn to_pascal_case_simple_handles_separators() {
+        assert_eq!(to_pascal_case_simple("auth"), "Auth");
+        assert_eq!(to_pascal_case_simple("my_service"), "MyService");
+        assert_eq!(to_pascal_case_simple("my-service"), "MyService");
+        assert_eq!(to_pascal_case_simple("apilog"), "Apilog");
     }
 }
