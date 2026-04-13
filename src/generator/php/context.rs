@@ -5,7 +5,8 @@
 //! transform IR types into these template-ready structures.
 
 use crate::ir::{
-    EnumBackingType, EnumSchema, ObjectSchema, ResolvedSchema, ResolvedSpec, UnionSchema,
+    EnumBackingType, EnumSchema, ObjectSchema, ResolvedSchema, ResolvedSpec, SecuritySchemeType,
+    UnionSchema,
 };
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -70,6 +71,9 @@ pub struct ClientCtx {
     pub model_refs: Vec<String>,
     pub endpoints: Vec<EndpointCtx>,
     pub has_exceptions: bool,
+    pub auth_schemes: Vec<AuthSchemeCtx>,
+    pub has_bearer_auth: bool,
+    pub has_api_key_header_auth: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -124,6 +128,18 @@ pub struct QueryParamCtx {
     pub name: String,
     pub php_name: String,
     pub required: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthSchemeCtx {
+    /// PHP property name without `$`, e.g. `"bearerToken"`
+    pub prop_name: String,
+    /// Constructor parameter declaration, e.g. `"private readonly ?string $bearerToken = null"`
+    pub constructor_param: String,
+    /// HTTP header name, e.g. `"Authorization"` or `"X-Api-Key"`
+    pub header_name: String,
+    /// Value prefix before the token, e.g. `"Bearer "` or `""`
+    pub header_prefix: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -574,6 +590,36 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
 
     let has_exceptions = endpoints.iter().any(|ep| !ep.error_cases.is_empty());
 
+    let auth_schemes: Vec<AuthSchemeCtx> = spec
+        .security_schemes
+        .iter()
+        .filter_map(|s| match &s.scheme_type {
+            SecuritySchemeType::Http { scheme } if scheme == "bearer" => Some(AuthSchemeCtx {
+                prop_name: "bearerToken".to_string(),
+                constructor_param: "private readonly ?string $bearerToken = null".to_string(),
+                header_name: "Authorization".to_string(),
+                header_prefix: "Bearer ".to_string(),
+            }),
+            SecuritySchemeType::ApiKey { in_, name } if in_ == "header" => {
+                let prop = format!("{}ApiKey", to_camel_case(name));
+                Some(AuthSchemeCtx {
+                    prop_name: prop.clone(),
+                    constructor_param: format!("private readonly ?string ${prop} = null"),
+                    header_name: name.clone(),
+                    header_prefix: String::new(),
+                })
+            }
+            _ => None,
+        })
+        .collect();
+
+    let has_bearer_auth = spec.security_schemes.iter().any(|s| {
+        matches!(&s.scheme_type, SecuritySchemeType::Http { scheme } if scheme == "bearer")
+    });
+    let has_api_key_header_auth = spec.security_schemes.iter().any(|s| {
+        matches!(&s.scheme_type, SecuritySchemeType::ApiKey { in_, .. } if in_ == "header")
+    });
+
     ClientCtx {
         namespace: namespace.to_string(),
         title: spec.title.clone(),
@@ -582,5 +628,8 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
         model_refs,
         endpoints,
         has_exceptions,
+        auth_schemes,
+        has_bearer_auth,
+        has_api_key_header_auth,
     }
 }

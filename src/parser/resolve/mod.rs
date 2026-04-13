@@ -13,7 +13,8 @@ use indexmap::IndexMap;
 use crate::ir::{
     ArraySchema, EnumBackingType, EnumSchema, EnumVariant, HttpMethod, ObjectSchema, PhpPrimitive,
     PrimitiveSchema, ResolvedEndpoint, ResolvedErrorResponse, ResolvedParam, ResolvedProperty,
-    ResolvedRequestBody, ResolvedSchema, ResolvedSpec, UnionSchema,
+    ResolvedRequestBody, ResolvedSchema, ResolvedSecurityScheme, ResolvedSpec, SecuritySchemeType,
+    UnionSchema,
 };
 use crate::parser::error::ResolveError;
 use crate::parser::raw::types::{
@@ -73,12 +74,56 @@ pub fn resolve(raw: &RawOpenApi) -> Result<ResolvedSpec> {
         .map(|s| s.url.clone())
         .unwrap_or_default();
 
+    let security_schemes = raw
+        .components
+        .as_ref()
+        .map(|c| {
+            c.security_schemes
+                .iter()
+                .filter_map(|(scheme_name, raw_scheme)| {
+                    let scheme_type = match raw_scheme.scheme_type.as_str() {
+                        "http" => {
+                            let s = raw_scheme
+                                .scheme
+                                .as_deref()
+                                .unwrap_or("")
+                                .to_lowercase();
+                            Some(SecuritySchemeType::Http { scheme: s })
+                        }
+                        "apiKey" => {
+                            let in_ = raw_scheme
+                                .location
+                                .as_deref()
+                                .unwrap_or("header")
+                                .to_string();
+                            let key_name = raw_scheme
+                                .name
+                                .as_deref()
+                                .unwrap_or("")
+                                .to_string();
+                            Some(SecuritySchemeType::ApiKey {
+                                in_,
+                                name: key_name,
+                            })
+                        }
+                        _ => None,
+                    }?;
+                    Some(ResolvedSecurityScheme {
+                        name: scheme_name.clone(),
+                        scheme_type,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     Ok(ResolvedSpec {
         title: raw.info.title.clone(),
         version: raw.info.version.clone(),
         base_url,
         schemas,
         endpoints,
+        security_schemes,
     })
 }
 

@@ -11,6 +11,27 @@ pub struct ResolvedSpec {
     pub base_url: String,
     pub schemas: IndexMap<String, ResolvedSchema>,
     pub endpoints: Vec<ResolvedEndpoint>,
+    pub security_schemes: Vec<ResolvedSecurityScheme>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolvedSecurityScheme {
+    /// The key name from `components/securitySchemes`, e.g. `"BearerAuth"`
+    pub name: String,
+    pub scheme_type: SecuritySchemeType,
+}
+
+#[derive(Debug, Clone)]
+pub enum SecuritySchemeType {
+    /// `type: http` — `scheme` is normalised to lowercase, e.g. `"bearer"` or `"basic"`
+    Http { scheme: String },
+    /// `type: apiKey`
+    ApiKey {
+        /// `"header"`, `"query"`, or `"cookie"`
+        in_: String,
+        /// The header / query / cookie name, e.g. `"X-API-Key"`
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone)]

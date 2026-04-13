@@ -272,3 +272,98 @@ fn php81_uses_per_property_readonly() {
     assert!(!content.contains("readonly final class"), "8.1 should not use readonly class");
     assert!(content.contains("public readonly"), "8.1 should have per-property readonly");
 }
+
+// ─── Auth injection tests ─────────────────────────────────────────────────────
+
+#[test]
+fn parse_bearer_auth_scheme() {
+    let spec = parser::load_and_resolve(&fixture("bearer_auth.yaml")).unwrap();
+    assert!(
+        spec.security_schemes.iter().any(|s| s.name == "BearerAuth"),
+        "Expected BearerAuth scheme in resolved spec"
+    );
+}
+
+#[test]
+fn parse_api_key_auth_scheme() {
+    let spec = parser::load_and_resolve(&fixture("bearer_auth.yaml")).unwrap();
+    assert!(
+        spec.security_schemes.iter().any(|s| s.name == "ApiKeyHeader"),
+        "Expected ApiKeyHeader scheme in resolved spec"
+    );
+}
+
+#[test]
+fn no_security_schemes_on_simple_spec() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    assert!(
+        spec.security_schemes.is_empty(),
+        "simple.yaml has no securitySchemes"
+    );
+}
+
+#[test]
+fn client_ctx_has_bearer_auth_flag() {
+    use openapi_php::generator::php::context::build_client_ctx;
+
+    let spec = parser::load_and_resolve(&fixture("bearer_auth.yaml")).unwrap();
+    let ctx = build_client_ctx(&spec, "App\\Generated");
+    assert!(ctx.has_bearer_auth, "has_bearer_auth should be true");
+    assert!(ctx.has_api_key_header_auth, "has_api_key_header_auth should be true");
+    assert!(!ctx.auth_schemes.is_empty(), "auth_schemes should not be empty");
+}
+
+#[test]
+fn client_ctx_no_auth_on_simple_spec() {
+    use openapi_php::generator::php::context::build_client_ctx;
+
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = build_client_ctx(&spec, "App\\Generated");
+    assert!(!ctx.has_bearer_auth, "has_bearer_auth should be false for simple.yaml");
+    assert!(!ctx.has_api_key_header_auth);
+    assert!(ctx.auth_schemes.is_empty());
+}
+
+#[test]
+fn client_ctx_bearer_auth_scheme_fields() {
+    use openapi_php::generator::php::context::build_client_ctx;
+
+    let spec = parser::load_and_resolve(&fixture("bearer_auth.yaml")).unwrap();
+    let ctx = build_client_ctx(&spec, "App\\Generated");
+
+    let bearer = ctx
+        .auth_schemes
+        .iter()
+        .find(|s| s.constructor_param.contains("bearerToken"))
+        .expect("Expected bearer auth scheme in auth_schemes");
+
+    assert!(
+        bearer.constructor_param.contains("?string $bearerToken"),
+        "constructor_param should declare nullable bearerToken"
+    );
+    assert_eq!(bearer.header_name, "Authorization");
+    assert!(
+        bearer.header_prefix.contains("Bearer"),
+        "header_prefix should include Bearer"
+    );
+}
+
+#[test]
+fn client_ctx_api_key_scheme_fields() {
+    use openapi_php::generator::php::context::build_client_ctx;
+
+    let spec = parser::load_and_resolve(&fixture("bearer_auth.yaml")).unwrap();
+    let ctx = build_client_ctx(&spec, "App\\Generated");
+
+    let api_key = ctx
+        .auth_schemes
+        .iter()
+        .find(|s| s.header_name.contains("X-API-Key"))
+        .expect("Expected API key auth scheme in auth_schemes");
+
+    assert!(
+        api_key.constructor_param.contains("?string $"),
+        "constructor_param should declare a nullable string property"
+    );
+    assert_eq!(api_key.header_prefix, "");
+}
