@@ -121,6 +121,7 @@ pub struct ErrorCaseCtx {
 pub struct QueryParamCtx {
     pub name: String,
     pub php_name: String,
+    pub required: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -482,6 +483,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 .map(|p| QueryParamCtx {
                     name: p.name.clone(),
                     php_name: p.php_name.clone(),
+                    required: p.required,
                 })
                 .collect();
 
@@ -491,6 +493,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 .map(|p| QueryParamCtx {
                     name: p.name.clone(),
                     php_name: p.php_name.clone(),
+                    required: p.required,
                 })
                 .collect();
 

@@ -564,7 +564,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         responses: &IndexMap<String, RawOrRef<Response>>,
     ) -> Result<Vec<ResolvedErrorResponse>> {
-        let success_keys: &[&str] = &["200", "201", "2xx", "default"];
+        let success_keys: &[&str] = &["200", "201", "2xx"];
         let mut result = Vec::new();
 
         for (key, ror) in responses {

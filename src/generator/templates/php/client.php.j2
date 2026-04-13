@@ -63,7 +63,13 @@ final class ApiClient
 {% endif %}
 {% if ep.has_header_params %}
 {% for hp in ep.header_params %}
+{% if hp.required %}
         $request = $request->withHeader('{{ hp.name }}', (string) ${{ hp.php_name }});
+{% else %}
+        if (${{ hp.php_name }} !== null) {
+            $request = $request->withHeader('{{ hp.name }}', (string) ${{ hp.php_name }});
+        }
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if ep.has_request_body %}
@@ -73,10 +79,11 @@ final class ApiClient
         $response = $this->httpClient->sendRequest($request);
 {% if ep.error_cases %}
         if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
-            $errorBody = json_decode((string) $response->getBody(), true) ?? [];
+            $rawBody = (string) $response->getBody();
+            $errorBody = json_decode($rawBody, true) ?? [];
             throw match ($response->getStatusCode()) {
 {% for ec in ep.error_cases %}
-                {{ ec.status_code }} => new Exceptions\{{ ec.exception_class }}({% if ec.error_expr %}{{ ec.error_expr }}{% endif %}),
+                {{ ec.status_code }} => new Exceptions\{{ ec.exception_class }}({% if ec.error_expr %}{{ ec.error_expr }}{% else %}body: $rawBody{% endif %}),
 {% endfor %}
                 default => new \RuntimeException(
                     sprintf('HTTP %d: %s %s', $response->getStatusCode(), '{{ ep.method_str }}', '{{ ep.path }}'),
