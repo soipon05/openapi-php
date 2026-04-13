@@ -5,6 +5,7 @@
 //! Circular `$ref` chains are detected and reported as `ResolveError::CircularRef`.
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -229,11 +230,7 @@ impl<'a> Resolver<'a> {
             };
             let is_required = required.contains(&name);
             let prop_schema = match &prop_ror {
-                RawOrRef::Ref { ref_path } => {
-                    let name = ref_name(ref_path).to_string();
-                    self.resolve_named_schema_for_ref(&name, ref_path)?;
-                    ResolvedSchema::Ref(name.into())
-                }
+                RawOrRef::Ref { ref_path } => self.resolve_ref_or_inline(ref_path)?,
                 _ => self.resolve_schema_or_ref(&prop_ror)?,
             };
             properties.insert(
@@ -256,11 +253,7 @@ impl<'a> Resolver<'a> {
         let items = if let Some(items_ror) = &schema.items {
             let ror = *items_ror.clone(); // Box<RawOrRef<Schema>> → RawOrRef<Schema>
             match ror {
-                RawOrRef::Ref { ref_path } => {
-                    let name = ref_name(&ref_path).to_string();
-                    self.resolve_named_schema_for_ref(&name, &ref_path)?;
-                    ResolvedSchema::Ref(name.into())
-                }
+                RawOrRef::Ref { ref_path } => self.resolve_ref_or_inline(&ref_path)?,
                 _ => self.resolve_schema_or_ref(&ror)?,
             }
         } else {
@@ -311,11 +304,7 @@ impl<'a> Resolver<'a> {
             };
             let is_required = required.contains(&name);
             let prop_schema = match &prop_ror {
-                RawOrRef::Ref { ref_path } => {
-                    let name = ref_name(ref_path).to_string();
-                    self.resolve_named_schema_for_ref(&name, ref_path)?;
-                    ResolvedSchema::Ref(name.into())
-                }
+                RawOrRef::Ref { ref_path } => self.resolve_ref_or_inline(ref_path)?,
                 _ => self.resolve_schema_or_ref(&prop_ror)?,
             };
             merged.insert(
@@ -344,13 +333,9 @@ impl<'a> Resolver<'a> {
 
         let mut variants = Vec::new();
         for ror in &variants_raw {
-            // Preserve $ref as Ref(name) — same pattern as resolve_object/resolve_array.
+            // Preserve $ref as Ref(name) unless the target is a primitive (inline it).
             let resolved = match ror {
-                RawOrRef::Ref { ref_path } => {
-                    let name = ref_name(ref_path).to_string();
-                    self.resolve_named_schema_for_ref(&name, ref_path)?;
-                    ResolvedSchema::Ref(name.into())
-                }
+                RawOrRef::Ref { ref_path } => self.resolve_ref_or_inline(ref_path)?,
                 _ => self.resolve_schema_or_ref(ror)?,
             };
             variants.push(resolved);
@@ -379,6 +364,20 @@ impl<'a> Resolver<'a> {
             discriminator_mapping,
             description: schema.description.clone(),
         }))
+    }
+
+    fn resolve_ref_or_inline(&mut self, ref_path: &str) -> Result<ResolvedSchema> {
+        if !ref_path.starts_with("#/components/schemas/") {
+            return Err(ResolveError::InvalidRefFormat {
+                ref_path: ref_path.to_string(),
+            }
+            .into());
+        }
+        let name = ref_name(ref_path);
+        match self.resolve_named_schema_for_ref(name, ref_path)? {
+            p @ ResolvedSchema::Primitive(_) => Ok(p),
+            _ => Ok(ResolvedSchema::Ref(Arc::from(name))),
+        }
     }
 
     // -----------------------------------------------------------------------
