@@ -169,6 +169,12 @@ pub fn to_array_expr(_key: &str, camel: &str, schema: &ResolvedSchema, nullable:
             // Nullable-ref union always uses ?->toArray() because null is a valid value.
             format!("$this->{camel}?->toArray()")
         }
+        ResolvedSchema::Array(arr) => match arr.items.as_ref() {
+            ResolvedSchema::Ref(_) => {
+                format!("array_map(fn($item) => $item->toArray(), $this->{camel})")
+            }
+            _ => format!("$this->{camel}"),
+        },
         _ => format!("$this->{camel}"),
     }
 }
