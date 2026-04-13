@@ -12,6 +12,9 @@ use Psr\Http\Message\StreamFactoryInterface;
 {% for model_ref in model_refs %}
 use {{ namespace }}\Models\{{ model_ref }};
 {% endfor %}
+{% if has_exceptions %}
+use {{ namespace }}\Exceptions;
+{% endif %}
 
 /** {{ title }} API Client (auto-generated) */
 final class ApiClient
@@ -34,7 +37,10 @@ final class ApiClient
      *
 {% endif %}
      * @throws \Psr\Http\Client\ClientExceptionInterface
-     * @throws \RuntimeException On non-2xx response
+{% for ec in ep.error_cases %}
+     * @throws \{{ namespace }}\Exceptions\{{ ec.exception_class }}
+{% endfor %}
+     * @throws \RuntimeException On unexpected non-2xx response
 {% if ep.has_json %}
      * @throws \JsonException On JSON error
 {% endif %}
@@ -60,7 +66,22 @@ final class ApiClient
         $request = $request->withBody($stream)->withHeader('Content-Type', 'application/json');
 {% endif %}
         $response = $this->httpClient->sendRequest($request);
+{% if ep.error_cases %}
+        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
+            $body = $this->decodeJson($response);
+            throw match ($response->getStatusCode()) {
+{% for ec in ep.error_cases %}
+                {{ ec.status_code }} => new Exceptions\{{ ec.exception_class }}({% if ec.error_expr %}{{ ec.error_expr }}{% endif %}),
+{% endfor %}
+                default => new \RuntimeException(
+                    sprintf('HTTP %d: %s %s', $response->getStatusCode(), '{{ ep.method_str }}', '{{ ep.path }}'),
+                    $response->getStatusCode(),
+                ),
+            };
+        }
+{% else %}
         $this->assertSuccessful($response, '{{ ep.method_str }}', '{{ ep.path }}');
+{% endif %}
 {% if ep.return_ref %}
         return {{ ep.return_ref }}::fromArray($this->decodeJson($response));
 {% elif ep.return_array %}

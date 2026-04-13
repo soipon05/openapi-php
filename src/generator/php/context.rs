@@ -4,14 +4,16 @@
 //! Builder functions (`build_model_ctx`, `build_enum_ctx`, `build_client_ctx`)
 //! transform IR types into these template-ready structures.
 
-use crate::ir::{EnumBackingType, EnumSchema, ObjectSchema, ResolvedSchema, ResolvedSpec, UnionSchema};
+use crate::ir::{
+    EnumBackingType, EnumSchema, ObjectSchema, ResolvedSchema, ResolvedSpec, UnionSchema,
+};
 use indexmap::IndexMap;
 use serde::Serialize;
 use std::collections::BTreeSet;
 
 use super::helpers::{
     ReturnKind, build_path_expr, collect_refs, escape_reserved, from_array_expr, items_type_name,
-    resolve_return, schema_to_php_type, to_array_expr, to_camel_case,
+    resolve_return, schema_to_php_type, to_array_expr, to_camel_case, to_pascal_case,
 };
 
 // ─── Context structs (Serialize → minijinja) ───────────────────────────────
@@ -67,6 +69,7 @@ pub struct ClientCtx {
     pub needs_stream_factory: bool,
     pub model_refs: Vec<String>,
     pub endpoints: Vec<EndpointCtx>,
+    pub has_exceptions: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,6 +90,28 @@ pub struct EndpointCtx {
     /// Model class name for `Name::fromArray(...)` return
     pub return_ref: Option<String>,
     pub return_array: bool,
+    pub error_cases: Vec<ErrorCaseCtx>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ExceptionCtx {
+    pub class_name: String,
+    pub namespace: String,
+    pub status_code: u16,
+    /// PHP class name of the error model, e.g. "Error" — None if no schema
+    pub error_model: Option<String>,
+    /// Full use-import path, e.g. "App\\Generated\\Models\\Error"
+    pub error_use: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ErrorCaseCtx {
+    pub status_code: u16,
+    /// short exception class name, e.g. "GetUserInfoNotFoundException"
+    pub exception_class: String,
+    /// PHP expression to construct the typed error, e.g. "Error::fromArray($body)"
+    /// None when there is no schema
+    pub error_expr: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -329,18 +354,78 @@ pub fn build_union_ctx(
     })
 }
 
+/// Maps a numeric HTTP status code to a PHP exception class name suffix.
+fn status_code_suffix(code: u16) -> &'static str {
+    match code {
+        400 => "BadRequestException",
+        401 => "UnauthorizedException",
+        403 => "ForbiddenException",
+        404 => "NotFoundException",
+        409 => "ConflictException",
+        422 => "UnprocessableEntityException",
+        429 => "TooManyRequestsException",
+        500 => "InternalServerErrorException",
+        c if (400..500).contains(&c) => "ClientException",
+        c if c >= 500 => "ServerException",
+        _ => "Exception",
+    }
+}
+
+/// Build exception context structs for all error responses across all endpoints.
+pub fn build_exception_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<ExceptionCtx> {
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut result = Vec::new();
+
+    for ep in &spec.endpoints {
+        let operation_pascal = to_pascal_case(&ep.operation_id);
+        for er in &ep.error_responses {
+            let suffix = status_code_suffix(er.status_code);
+            let class_name = format!("{operation_pascal}{suffix}");
+
+            if seen.contains(&class_name) {
+                continue;
+            }
+            seen.insert(class_name.clone());
+
+            let (error_model, error_use) = match &er.schema {
+                Some(ResolvedSchema::Ref(n)) => {
+                    let model = n.to_string();
+                    let use_path = format!("{namespace}\\Models\\{model}");
+                    (Some(model), Some(use_path))
+                }
+                _ => (None, None),
+            };
+
+            result.push(ExceptionCtx {
+                class_name,
+                namespace: namespace.to_string(),
+                status_code: er.status_code,
+                error_model,
+                error_use,
+            });
+        }
+    }
+
+    result
+}
+
 pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
     let needs_stream_factory = spec.endpoints.iter().any(|ep| ep.request_body.is_some());
 
     let mut model_refs: Vec<String> = spec
         .endpoints
         .iter()
-        .filter_map(|ep| {
+        .flat_map(|ep| {
+            let mut refs = Vec::new();
             if let Some(ResolvedSchema::Ref(n)) = &ep.response {
-                Some(n.to_string())
-            } else {
-                None
+                refs.push(n.to_string());
             }
+            for er in &ep.error_responses {
+                if let Some(ResolvedSchema::Ref(n)) = &er.schema {
+                    refs.push(n.to_string());
+                }
+            }
+            refs
         })
         .collect();
     model_refs.sort();
@@ -385,6 +470,27 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 ReturnKind::Array => (false, None, true),
             };
 
+            let operation_pascal = to_pascal_case(&ep.operation_id);
+            let error_cases: Vec<ErrorCaseCtx> = ep
+                .error_responses
+                .iter()
+                .map(|er| {
+                    let suffix = status_code_suffix(er.status_code);
+                    let exception_class = format!("{operation_pascal}{suffix}");
+                    let error_expr = match &er.schema {
+                        Some(ResolvedSchema::Ref(n)) => {
+                            Some(format!("{n}::fromArray($body)"))
+                        }
+                        _ => None,
+                    };
+                    ErrorCaseCtx {
+                        status_code: er.status_code,
+                        exception_class,
+                        error_expr,
+                    }
+                })
+                .collect();
+
             EndpointCtx {
                 fn_name,
                 method_str,
@@ -401,9 +507,12 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 return_void,
                 return_ref,
                 return_array,
+                error_cases,
             }
         })
-        .collect();
+        .collect::<Vec<_>>();
+
+    let has_exceptions = endpoints.iter().any(|ep| !ep.error_cases.is_empty());
 
     ClientCtx {
         namespace: namespace.to_string(),
@@ -412,5 +521,6 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
         needs_stream_factory,
         model_refs,
         endpoints,
+        has_exceptions,
     }
 }

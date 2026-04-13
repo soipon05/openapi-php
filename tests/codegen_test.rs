@@ -184,7 +184,8 @@ fn client_throws_docblock() {
     let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
 
     assert!(client.contains("@throws \\Psr\\Http\\Client\\ClientExceptionInterface"));
-    assert!(client.contains("@throws \\RuntimeException On non-2xx response"));
+    // Endpoints without error cases still emit the generic RuntimeException docblock
+    assert!(client.contains("@throws \\RuntimeException On unexpected non-2xx response"));
 }
 
 // ─── run_dry_filtered tests ───────────────────────────────────────────────────

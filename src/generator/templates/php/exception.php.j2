@@ -1,0 +1,43 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }}\Exceptions;
+{% if error_use %}
+
+use {{ error_use }};
+{% endif %}
+
+final class {{ class_name }} extends \RuntimeException
+{
+{% if error_model %}
+    public function __construct(
+        private readonly {{ error_model }} $error,
+        int $statusCode = {{ status_code }},
+        \Throwable $previous = null,
+    ) {
+        parent::__construct(
+            sprintf('HTTP %d: %s', $statusCode, $this->error->message ?? ''),
+            $statusCode,
+            $previous,
+        );
+    }
+
+    public function getError(): {{ error_model }}
+    {
+        return $this->error;
+    }
+{% else %}
+    public function __construct(
+        int $statusCode = {{ status_code }},
+        string $body = '',
+        \Throwable $previous = null,
+    ) {
+        parent::__construct(
+            sprintf('HTTP %d: %s', $statusCode, $body),
+            $statusCode,
+            $previous,
+        );
+    }
+{% endif %}
+}

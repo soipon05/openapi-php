@@ -12,8 +12,8 @@ use indexmap::IndexMap;
 
 use crate::ir::{
     ArraySchema, EnumBackingType, EnumSchema, EnumVariant, HttpMethod, ObjectSchema, PhpPrimitive,
-    PrimitiveSchema, ResolvedEndpoint, ResolvedParam, ResolvedProperty, ResolvedRequestBody,
-    ResolvedSchema, ResolvedSpec, UnionSchema,
+    PrimitiveSchema, ResolvedEndpoint, ResolvedErrorResponse, ResolvedParam, ResolvedProperty,
+    ResolvedRequestBody, ResolvedSchema, ResolvedSpec, UnionSchema,
 };
 use crate::parser::error::ResolveError;
 use crate::parser::raw::types::{
@@ -429,6 +429,7 @@ impl<'a> Resolver<'a> {
 
         let responses = op.responses.clone();
         let response = self.resolve_success_response(&responses)?;
+        let error_responses = self.resolve_error_responses(&responses)?;
 
         Ok(ResolvedEndpoint {
             operation_id,
@@ -441,6 +442,7 @@ impl<'a> Resolver<'a> {
             request_body,
             response,
             deprecated: op.deprecated.unwrap_or(false),
+            error_responses,
         })
     }
 
@@ -553,6 +555,69 @@ impl<'a> Resolver<'a> {
             schema,
             required: rb.required.unwrap_or(false),
         })
+    }
+
+    fn resolve_error_responses(
+        &mut self,
+        responses: &IndexMap<String, RawOrRef<Response>>,
+    ) -> Result<Vec<ResolvedErrorResponse>> {
+        let success_keys: &[&str] = &["200", "201", "2xx", "default"];
+        let mut result = Vec::new();
+
+        for (key, ror) in responses {
+            // Skip success keys
+            if success_keys.contains(&key.as_str()) {
+                continue;
+            }
+            // Only process numeric status codes in the 4xx/5xx range
+            let status_code = match key.parse::<u16>() {
+                Ok(code) if code >= 400 => code,
+                _ => continue,
+            };
+
+            let response: Response = match ror {
+                RawOrRef::Value(r) => r.clone(),
+                RawOrRef::Ref { ref_path } => {
+                    let name = ref_name(ref_path);
+                    self.raw
+                        .components
+                        .as_ref()
+                        .and_then(|c| c.responses.get(name))
+                        .and_then(|r| {
+                            if let RawOrRef::Value(resp) = r {
+                                Some(resp.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .ok_or_else(|| anyhow::anyhow!("Response '{}' not found", name))?
+                }
+            };
+
+            let schema_ror = response
+                .content
+                .as_ref()
+                .and_then(|c| c.get("application/json"))
+                .and_then(|m| m.schema.as_ref())
+                .cloned();
+
+            let schema = match schema_ror {
+                Some(RawOrRef::Ref { ref_path }) => {
+                    let name = ref_name(&ref_path).to_string();
+                    self.resolve_named_schema_for_ref(&name, &ref_path)?; // validate exists
+                    Some(ResolvedSchema::Ref(name.into()))
+                }
+                Some(ror) => Some(self.resolve_schema_or_ref(&ror)?),
+                None => None,
+            };
+
+            result.push(ResolvedErrorResponse {
+                status_code,
+                schema,
+            });
+        }
+
+        Ok(result)
     }
 
     fn resolve_success_response(

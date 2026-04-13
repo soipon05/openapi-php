@@ -25,6 +25,14 @@ pub struct ResolvedEndpoint {
     pub request_body: Option<ResolvedRequestBody>,
     pub response: Option<ResolvedSchema>,
     pub deprecated: bool,
+    pub error_responses: Vec<ResolvedErrorResponse>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolvedErrorResponse {
+    pub status_code: u16,
+    /// None when the error response has no body (e.g. 204)
+    pub schema: Option<ResolvedSchema>,
 }
 
 #[derive(Debug, Clone)]

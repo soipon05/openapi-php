@@ -9,7 +9,9 @@ use anyhow::Result;
 use minijinja::{Environment, Value};
 use std::path::{Path, PathBuf};
 
-use super::context::{build_client_ctx, build_enum_ctx, build_model_ctx, build_union_ctx};
+use super::context::{
+    build_client_ctx, build_enum_ctx, build_exception_ctxs, build_model_ctx, build_union_ctx,
+};
 use super::templates::add_template_with_override;
 
 pub struct PlainPhpBackend {
@@ -48,6 +50,13 @@ impl PlainPhpBackend {
             "union",
             "union.php.j2",
             include_str!("../templates/php/union.php.j2"),
+        )?;
+        add_template_with_override(
+            &mut env,
+            templates_dir,
+            "exception",
+            "exception.php.j2",
+            include_str!("../templates/php/exception.php.j2"),
         )?;
         Ok(Self { env })
     }
@@ -109,6 +118,19 @@ impl CodegenBackend for PlainPhpBackend {
                 // Array, Primitive have no standalone PHP file representation
                 _ => {}
             }
+        }
+
+        // Exception classes
+        let exception_ctxs = build_exception_ctxs(ctx.spec, ctx.namespace);
+        for exc_ctx in &exception_ctxs {
+            let content = self
+                .env
+                .get_template("exception")?
+                .render(Value::from_serialize(exc_ctx))?;
+            files.push(RenderedFile {
+                rel_path: PathBuf::from(format!("Exceptions/{}.php", exc_ctx.class_name)),
+                content,
+            });
         }
 
         // API client
