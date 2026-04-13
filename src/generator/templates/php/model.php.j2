@@ -28,14 +28,17 @@ final class {{ name }}
         /**
 {% if prop.description %}
          * {{ prop.description }}
-         * @var list<{{ prop.items_type }}>
-{% else %}
-         * @var list<{{ prop.items_type }}>
 {% endif %}
+         * @var list<{{ prop.items_type }}>
          */
-{% elif prop.description %}
+{% elif prop.description or prop.format %}
         /**
+{% if prop.description %}
          * {{ prop.description }}
+{% endif %}
+{% if prop.format %}
+         * @format {{ prop.format }}
+{% endif %}
          */
 {% endif %}
 {% if use_readonly_class %}

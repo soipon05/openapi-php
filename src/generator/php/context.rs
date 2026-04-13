@@ -42,6 +42,10 @@ pub struct PropertyCtx {
     pub is_array: bool,
     pub items_type: String,
     pub description: Option<String>,
+    /// OpenAPI `format` value for primitive properties (e.g. "uuid", "email", "uri").
+    /// `None` for non-primitive properties or primitives without a declared format.
+    /// `date-time` is excluded here because it already maps to `\DateTimeImmutable`.
+    pub format: Option<String>,
     pub from_array_expr: String,
     pub to_array_expr: String,
 }
@@ -257,6 +261,18 @@ pub fn build_model_ctx(
                     to_array_expr(prop_name, &camel, &prop.schema, nullable),
                 ),
             };
+            // Surface the OpenAPI format for primitive properties in PHPDoc.
+            // Excludes date-time (already expressed as \DateTimeImmutable in php_type).
+            let format = match &prop.schema {
+                ResolvedSchema::Primitive(p)
+                    if p.format.as_deref() != Some("date-time")
+                        && p.format.as_deref() != Some("date") =>
+                {
+                    p.format.clone()
+                }
+                _ => None,
+            };
+
             PropertyCtx {
                 name: sanitize_php_string_literal(prop_name),
                 camel: camel.clone(),
@@ -265,6 +281,7 @@ pub fn build_model_ctx(
                 is_array,
                 items_type,
                 description: prop.description.as_deref().map(sanitize_phpdoc),
+                format,
                 from_array_expr: from_expr,
                 to_array_expr: to_expr,
             }

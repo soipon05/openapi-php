@@ -604,14 +604,11 @@ impl<'a> Resolver<'a> {
             .cloned();
 
         let schema = if let Some(ror) = schema_ror {
-            // Preserve the schema name so controller/client generators can derive
-            // `XxxRequest` class names from the ref.
+            // Preserve the schema name for Object/Enum/Union refs so generators can
+            // derive `XxxRequest` class names. Primitive refs (e.g. `$ref: Uuid`) are
+            // inlined to their native PHP type — consistent with property resolution.
             match ror {
-                RawOrRef::Ref { ref_path } => {
-                    let name = ref_name(&ref_path).to_string();
-                    self.resolve_named_schema_for_ref(&name, &ref_path)?; // validate exists
-                    ResolvedSchema::Ref(name.into())
-                }
+                RawOrRef::Ref { ref_path } => self.resolve_ref_or_inline(&ref_path)?,
                 _ => self.resolve_schema_or_ref(&ror)?,
             }
         } else {
@@ -670,10 +667,10 @@ impl<'a> Resolver<'a> {
                 .cloned();
 
             let schema = match schema_ror {
+                // Inline primitive refs (e.g. $ref: ErrorCode when ErrorCode is type: string).
+                // Preserve Ref for Object/Enum/Union so exception generators can name the class.
                 Some(RawOrRef::Ref { ref_path }) => {
-                    let name = ref_name(&ref_path).to_string();
-                    self.resolve_named_schema_for_ref(&name, &ref_path)?; // validate exists
-                    Some(ResolvedSchema::Ref(name.into()))
+                    Some(self.resolve_ref_or_inline(&ref_path)?)
                 }
                 Some(ror) => Some(self.resolve_schema_or_ref(&ror)?),
                 None => None,
@@ -729,12 +726,10 @@ impl<'a> Resolver<'a> {
             .cloned();
 
         match schema_ror {
-            // Preserve the schema name so controller/client generators can derive
-            // `XxxResource` / `XxxRequest` class names from the ref.
+            // Inline primitive refs; preserve Ref for Object/Enum/Union so generators
+            // can derive `XxxResource` / `XxxRequest` class names from the ref name.
             Some(RawOrRef::Ref { ref_path }) => {
-                let name = ref_name(&ref_path).to_string();
-                self.resolve_named_schema_for_ref(&name, &ref_path)?; // validate exists
-                Ok(Some(ResolvedSchema::Ref(name.into())))
+                Ok(Some(self.resolve_ref_or_inline(&ref_path)?))
             }
             Some(ror) => Ok(Some(self.resolve_schema_or_ref(&ror)?)),
             None => Ok(None),

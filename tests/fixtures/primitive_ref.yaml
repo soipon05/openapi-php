@@ -1,0 +1,59 @@
+openapi: "3.0.3"
+info:
+  title: Primitive Ref Test
+  version: "1.0.0"
+servers:
+  - url: https://api.example.com
+paths:
+  /users/{id}:
+    get:
+      operationId: getUser
+      summary: Get a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Uuid"
+components:
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+    Email:
+      type: string
+      format: email
+    User:
+      type: object
+      required:
+        - id
+        - email
+      properties:
+        id:
+          $ref: "#/components/schemas/Uuid"
+        email:
+          $ref: "#/components/schemas/Email"
+        name:
+          type: string

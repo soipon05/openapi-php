@@ -368,6 +368,106 @@ fn client_ctx_api_key_scheme_fields() {
     assert_eq!(api_key.header_prefix, "");
 }
 
+// ─── Primitive $ref inlining tests ───────────────────────────────────────────
+
+/// A named schema that is just `type: string` should NOT generate a PHP class file.
+#[test]
+fn primitive_ref_schema_generates_no_model_file() {
+    let spec = parser::load_and_resolve(&fixture("primitive_ref.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+
+    // Uuid and Email are primitive schemas — no PHP files should be generated for them
+    assert!(
+        !files.contains_key(&PathBuf::from("Models/Uuid.php")),
+        "Primitive schema Uuid must not produce a model file"
+    );
+    assert!(
+        !files.contains_key(&PathBuf::from("Models/Email.php")),
+        "Primitive schema Email must not produce a model file"
+    );
+    // User IS an object schema — it should still be generated
+    assert!(files.contains_key(&PathBuf::from("Models/User.php")));
+}
+
+/// Properties whose type was originally a `$ref` to a primitive schema must be
+/// inlined as the native PHP type, not left as a broken class reference.
+#[test]
+fn primitive_ref_property_is_inlined_as_native_php_type() {
+    let spec = parser::load_and_resolve(&fixture("primitive_ref.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let user = files[&PathBuf::from("Models/User.php")].as_str();
+
+    // The `id` property was $ref: Uuid (type: string). It must be PHP `string`, not `Uuid`.
+    assert!(
+        user.contains("string $id"),
+        "Expected `string $id`, got:\n{user}"
+    );
+    // No reference to the Uuid class name in code position
+    assert!(
+        !user.contains("Uuid::"),
+        "Uuid class reference must not appear in generated PHP: {user}"
+    );
+}
+
+/// `$ref` to a primitive in request body and success response must be inlined
+/// (not treated as a DTO class reference), so the generated client does not
+/// call `Uuid::fromArray(...)` on a non-existent class.
+#[test]
+fn primitive_ref_in_request_body_and_response_is_inlined() {
+    let spec = parser::load_and_resolve(&fixture("primitive_ref.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
+
+    // The createUser endpoint has $ref: Uuid as both requestBody and response.
+    // Neither should produce `Uuid::fromArray(...)`.
+    assert!(
+        !client.contains("Uuid::fromArray"),
+        "Uuid::fromArray must not appear — Uuid is a primitive, not a DTO class"
+    );
+}
+
+/// Properties with an OpenAPI `format` annotation should have `@format <value>`
+/// in their PHPDoc. `date-time` is excluded because it maps to `\DateTimeImmutable`.
+#[test]
+fn primitive_format_appears_in_phpdoc() {
+    let spec = parser::load_and_resolve(&fixture("primitive_ref.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let user = files[&PathBuf::from("Models/User.php")].as_str();
+
+    assert!(
+        user.contains("@format uuid"),
+        "Expected `@format uuid` for the id property"
+    );
+    assert!(
+        user.contains("@format email"),
+        "Expected `@format email` for the email property"
+    );
+}
+
 // ─── Injection / sanitization tests ──────────────────────────────────────────
 
 /// Spec strings that contain PHP injection payloads must never appear verbatim
