@@ -5,7 +5,10 @@
 //! (`to_camel_case`, `escape_reserved`, …) live in [`crate::php_utils`] and
 //! are re-exported here for convenience.
 
-pub use crate::php_utils::{PHP_RESERVED, escape_reserved, to_camel_case, to_pascal_case};
+pub use crate::php_utils::{
+    PHP_RESERVED, escape_reserved, sanitize_php_ident, sanitize_php_string_literal, sanitize_phpdoc,
+    to_camel_case, to_pascal_case,
+};
 
 use crate::ir::{EnumBackingType, PhpPrimitive, ResolvedParam, ResolvedSchema, UnionSchema};
 use std::collections::BTreeSet;
@@ -60,11 +63,11 @@ pub fn schema_to_php_type(schema: &ResolvedSchema, nullable: bool) -> String {
         },
         ResolvedSchema::Union(u) => {
             if let Some(name) = nullable_ref_name(u) {
-                return format!("?{name}");
+                return format!("?{}", sanitize_php_ident(name));
             }
             ("mixed".to_string(), false)
         }
-        ResolvedSchema::Ref(name) => (name.to_string(), false),
+        ResolvedSchema::Ref(name) => (sanitize_php_ident(name), false),
     };
     let is_nullable = nullable || schema_nullable;
     if is_nullable && base != "mixed" {
@@ -84,7 +87,7 @@ pub fn items_type_name(schema: &ResolvedSchema) -> String {
             PhpPrimitive::Bool => "bool".to_string(),
             PhpPrimitive::Mixed => "mixed".to_string(),
         },
-        ResolvedSchema::Ref(name) => name.to_string(),
+        ResolvedSchema::Ref(name) => sanitize_php_ident(name),
         ResolvedSchema::Object(_) => "array<string, mixed>".to_string(),
         _ => "mixed".to_string(),
     }
@@ -93,6 +96,7 @@ pub fn items_type_name(schema: &ResolvedSchema) -> String {
 // ─── fromArray / toArray expression builders ──────────────────────────────
 
 pub fn inner_from_array(key: &str, schema: &ResolvedSchema) -> String {
+    // `key` is expected to be pre-sanitized by the caller (from_array_expr).
     match schema {
         ResolvedSchema::Primitive(p) => match p.php_type {
             PhpPrimitive::Int => format!("(int) $data['{key}']"),
@@ -103,10 +107,14 @@ pub fn inner_from_array(key: &str, schema: &ResolvedSchema) -> String {
             }
             PhpPrimitive::String | PhpPrimitive::Mixed => format!("(string) $data['{key}']"),
         },
-        ResolvedSchema::Ref(name) => format!("{name}::fromArray($data['{key}'])"),
+        ResolvedSchema::Ref(name) => {
+            let safe = sanitize_php_ident(name);
+            format!("{safe}::fromArray($data['{key}'])")
+        }
         ResolvedSchema::Array(arr) => match arr.items.as_ref() {
             ResolvedSchema::Ref(rname) => {
-                format!("array_map(fn($item) => {rname}::fromArray($item), $data['{key}'])")
+                let safe = sanitize_php_ident(rname);
+                format!("array_map(fn($item) => {safe}::fromArray($item), $data['{key}'])")
             }
             _ => format!("(array) $data['{key}']"),
         },
@@ -116,12 +124,16 @@ pub fn inner_from_array(key: &str, schema: &ResolvedSchema) -> String {
 }
 
 pub fn from_array_expr(key: &str, schema: &ResolvedSchema, nullable: bool) -> String {
+    // Sanitize the JSON key for use inside PHP single-quoted string literals.
+    let key = &sanitize_php_string_literal(key);
+
     // Nullable-ref union: always use the isset pattern regardless of prop.required,
     // because the union itself declares that null is a valid value.
     if let ResolvedSchema::Union(u) = schema
         && let Some(name) = nullable_ref_name(u)
     {
-        return format!("isset($data['{key}']) ? {name}::fromArray($data['{key}']) : null");
+        let safe = sanitize_php_ident(name);
+        return format!("isset($data['{key}']) ? {safe}::fromArray($data['{key}']) : null");
     }
 
     if nullable {
@@ -131,8 +143,9 @@ pub fn from_array_expr(key: &str, schema: &ResolvedSchema, nullable: bool) -> St
         match schema {
             ResolvedSchema::Array(arr) => match arr.items.as_ref() {
                 ResolvedSchema::Ref(rname) => {
+                    let safe = sanitize_php_ident(rname);
                     format!(
-                        "array_map(fn($item) => {rname}::fromArray($item), $data['{key}'] ?? [])"
+                        "array_map(fn($item) => {safe}::fromArray($item), $data['{key}'] ?? [])"
                     )
                 }
                 _ => format!("(array) ($data['{key}'] ?? [])"),
@@ -221,7 +234,7 @@ pub fn build_path_expr(path: &str, path_params: &[ResolvedParam]) -> String {
 
     let args: String = path_params
         .iter()
-        .map(|p| format!("${}", p.php_name))
+        .map(|p| format!("${}", sanitize_php_ident(&p.php_name)))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -239,7 +252,10 @@ pub enum ReturnKind {
 pub fn resolve_return(response: &Option<ResolvedSchema>) -> (String, ReturnKind) {
     match response {
         None => ("void".to_string(), ReturnKind::Void),
-        Some(ResolvedSchema::Ref(name)) => (name.to_string(), ReturnKind::Ref(name.to_string())),
+        Some(ResolvedSchema::Ref(name)) => {
+            let safe = sanitize_php_ident(name);
+            (safe.clone(), ReturnKind::Ref(safe))
+        }
         Some(schema) => {
             let php_type = schema_to_php_type(schema, false);
             (php_type, ReturnKind::Array)

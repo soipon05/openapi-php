@@ -14,7 +14,8 @@ use std::collections::BTreeSet;
 
 use super::helpers::{
     ReturnKind, build_path_expr, collect_refs, escape_reserved, from_array_expr, items_type_name,
-    resolve_return, schema_to_php_type, to_array_expr, to_camel_case, to_pascal_case,
+    resolve_return, sanitize_php_ident, sanitize_php_string_literal, sanitize_phpdoc,
+    schema_to_php_type, to_array_expr, to_camel_case, to_pascal_case,
 };
 
 // ─── Context structs (Serialize → minijinja) ───────────────────────────────
@@ -179,7 +180,11 @@ pub fn build_model_ctx(
     for (_, prop) in &schema.properties {
         collect_refs(&prop.schema, &mut refs);
     }
-    let use_imports: Vec<String> = refs.into_iter().filter(|r| r.as_str() != name).collect();
+    let use_imports: Vec<String> = refs
+        .into_iter()
+        .filter(|r| r.as_str() != name)
+        .map(|r| sanitize_php_ident(&r))
+        .collect();
 
     let properties = schema
         .properties
@@ -187,7 +192,7 @@ pub fn build_model_ctx(
         .map(|(prop_name, prop)| {
             let nullable = !prop.required || prop.nullable;
             let php_type = schema_to_php_type(&prop.schema, nullable);
-            let camel = escape_reserved(&to_camel_case(prop_name));
+            let camel = sanitize_php_ident(&escape_reserved(&to_camel_case(prop_name)));
             let is_array = matches!(prop.schema, ResolvedSchema::Array(_));
             let items_type = if let ResolvedSchema::Array(arr) = &prop.schema {
                 items_type_name(&arr.items)
@@ -253,13 +258,13 @@ pub fn build_model_ctx(
                 ),
             };
             PropertyCtx {
-                name: prop_name.clone(),
+                name: sanitize_php_string_literal(prop_name),
                 camel: camel.clone(),
                 php_type,
                 required: prop.required && !prop.nullable,
                 is_array,
                 items_type,
-                description: prop.description.clone(),
+                description: prop.description.as_deref().map(sanitize_phpdoc),
                 from_array_expr: from_expr,
                 to_array_expr: to_expr,
             }
@@ -267,9 +272,9 @@ pub fn build_model_ctx(
         .collect();
 
     ModelCtx {
-        name: name.to_string(),
+        name: sanitize_php_ident(name),
         namespace: namespace.to_string(),
-        description: schema.description.clone(),
+        description: schema.description.as_deref().map(sanitize_phpdoc),
         use_imports,
         properties,
         use_readonly_class,
@@ -286,20 +291,30 @@ pub fn build_enum_ctx(name: &str, schema: &EnumSchema, namespace: &str) -> EnumC
         .iter()
         .map(|v| {
             let value = match schema.backing_type {
-                EnumBackingType::String => format!("'{}'", v.value),
-                EnumBackingType::Int => v.value.clone(),
+                EnumBackingType::String => {
+                    format!("'{}'", sanitize_php_string_literal(&v.value))
+                }
+                EnumBackingType::Int => {
+                    // Keep only digits and a leading minus so the literal is always valid.
+                    let safe: String = v
+                        .value
+                        .chars()
+                        .filter(|c| c.is_ascii_digit() || *c == '-')
+                        .collect();
+                    if safe.is_empty() { "0".to_string() } else { safe }
+                }
             };
             VariantCtx {
-                name: v.name.clone(),
+                name: sanitize_php_ident(&v.name),
                 value,
             }
         })
         .collect();
 
     EnumCtx {
-        name: name.to_string(),
+        name: sanitize_php_ident(name),
         namespace: namespace.to_string(),
-        description: schema.description.clone(),
+        description: schema.description.as_deref().map(sanitize_phpdoc),
         backing_type: backing_type.to_string(),
         variants,
     }
@@ -322,7 +337,7 @@ pub fn build_union_ctx(
         .iter()
         .filter_map(|v| {
             if let ResolvedSchema::Ref(n) = v {
-                Some(n.to_string())
+                Some(sanitize_php_ident(n))
             } else {
                 None
             }
@@ -338,14 +353,14 @@ pub fn build_union_ctx(
             // If mapping is present, find the key whose value is this class name.
             // If absent, OAS spec says use the schema name as-is.
             let match_key = if schema.discriminator_mapping.is_empty() {
-                class_name.clone()
+                sanitize_php_string_literal(class_name)
             } else {
                 schema
                     .discriminator_mapping
                     .iter()
                     .find(|(_, v)| v.as_str() == class_name.as_str())
-                    .map(|(k, _)| k.clone())
-                    .unwrap_or_else(|| class_name.clone())
+                    .map(|(k, _)| sanitize_php_string_literal(k))
+                    .unwrap_or_else(|| sanitize_php_string_literal(class_name))
             };
             UnionVariantCtx {
                 match_key,
@@ -358,17 +373,17 @@ pub fn build_union_ctx(
 
     let mut refs = BTreeSet::new();
     for cn in &class_names {
-        if cn != name {
+        if cn.as_str() != sanitize_php_ident(name).as_str() {
             refs.insert(cn.clone());
         }
     }
     let use_imports: Vec<String> = refs.into_iter().collect();
 
     Some(UnionCtx {
-        name: name.to_string(),
+        name: sanitize_php_ident(name),
         namespace: namespace.to_string(),
-        description: schema.description.clone(),
-        discriminator: disc.clone(),
+        description: schema.description.as_deref().map(sanitize_phpdoc),
+        discriminator: sanitize_php_string_literal(disc),
         variant_type,
         variants,
         use_imports,
@@ -402,7 +417,8 @@ pub fn build_exception_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Excepti
         let operation_pascal = to_pascal_case(&ep.operation_id);
         for er in &ep.error_responses {
             let suffix = status_code_suffix(er.status_code);
-            let class_name = format!("{operation_pascal}{suffix}");
+            let class_name =
+                sanitize_php_ident(&format!("{operation_pascal}{suffix}"));
 
             if seen.contains(&class_name) {
                 continue;
@@ -418,7 +434,7 @@ pub fn build_exception_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Excepti
                     if is_enum {
                         (None, None)
                     } else {
-                        let model = n.to_string();
+                        let model = sanitize_php_ident(n);
                         let use_path = format!("{namespace}\\Models\\{model}");
                         (Some(model), Some(use_path))
                     }
@@ -448,7 +464,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
         .flat_map(|ep| {
             let mut refs = Vec::new();
             if let Some(ResolvedSchema::Ref(n)) = &ep.response {
-                refs.push(n.to_string());
+                refs.push(sanitize_php_ident(n));
             }
             for er in &ep.error_responses {
                 if let Some(ResolvedSchema::Ref(n)) = &er.schema {
@@ -457,7 +473,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                         .get(n.as_ref())
                         .is_some_and(|s| matches!(s, ResolvedSchema::Enum(_)));
                     if !is_enum {
-                        refs.push(n.to_string());
+                        refs.push(sanitize_php_ident(n));
                     }
                 }
             }
@@ -471,21 +487,22 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
         .endpoints
         .iter()
         .map(|ep| {
-            let fn_name = escape_reserved(&to_camel_case(&ep.operation_id));
+            let fn_name =
+                sanitize_php_ident(&escape_reserved(&to_camel_case(&ep.operation_id)));
             let method_str = ep.method.as_str().to_string();
 
             let mut params: Vec<String> = Vec::new();
             for p in &ep.path_params {
                 let t = schema_to_php_type(&p.schema, !p.required);
-                params.push(format!("{t} ${}", p.php_name));
+                params.push(format!("{t} ${}", sanitize_php_ident(&p.php_name)));
             }
             for p in &ep.query_params {
                 let t = schema_to_php_type(&p.schema, !p.required);
-                params.push(format!("{t} ${}", p.php_name));
+                params.push(format!("{t} ${}", sanitize_php_ident(&p.php_name)));
             }
             for p in &ep.header_params {
                 let t = schema_to_php_type(&p.schema, !p.required);
-                params.push(format!("{t} ${}", p.php_name));
+                params.push(format!("{t} ${}", sanitize_php_ident(&p.php_name)));
             }
             if let Some(rb) = &ep.request_body {
                 let t = schema_to_php_type(&rb.schema, !rb.required);
@@ -499,8 +516,8 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 .query_params
                 .iter()
                 .map(|p| QueryParamCtx {
-                    name: p.name.clone(),
-                    php_name: p.php_name.clone(),
+                    name: sanitize_php_string_literal(&p.name),
+                    php_name: sanitize_php_ident(&p.php_name),
                     required: p.required,
                 })
                 .collect();
@@ -509,8 +526,8 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 .header_params
                 .iter()
                 .map(|p| QueryParamCtx {
-                    name: p.name.clone(),
-                    php_name: p.php_name.clone(),
+                    name: sanitize_php_string_literal(&p.name),
+                    php_name: sanitize_php_ident(&p.php_name),
                     required: p.required,
                 })
                 .collect();
@@ -521,13 +538,14 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 ReturnKind::Array => (false, None, true),
             };
 
-            let operation_pascal = to_pascal_case(&ep.operation_id);
+            let operation_pascal = sanitize_php_ident(&to_pascal_case(&ep.operation_id));
             let error_cases: Vec<ErrorCaseCtx> = ep
                 .error_responses
                 .iter()
                 .map(|er| {
                     let suffix = status_code_suffix(er.status_code);
-                    let exception_class = format!("{operation_pascal}{suffix}");
+                    let exception_class =
+                        sanitize_php_ident(&format!("{operation_pascal}{suffix}"));
                     let error_expr = match &er.schema {
                         Some(ResolvedSchema::Ref(n)) => {
                             let is_enum = spec
@@ -537,7 +555,8 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                             if is_enum {
                                 None
                             } else {
-                                Some(format!("{n}::fromArray($errorBody)"))
+                                let safe_n = sanitize_php_ident(n);
+                                Some(format!("{safe_n}::fromArray($errorBody)"))
                             }
                         }
                         _ => None,
@@ -553,11 +572,11 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
             EndpointCtx {
                 fn_name,
                 method_str,
-                path: ep.path.clone(),
+                path: sanitize_php_string_literal(&ep.path),
                 params_str: params.join(", "),
                 return_type,
                 has_json,
-                summary: ep.summary.clone(),
+                summary: ep.summary.as_deref().map(sanitize_phpdoc),
                 deprecated: ep.deprecated,
                 has_query_params: !ep.query_params.is_empty(),
                 query_params,
@@ -601,11 +620,11 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 header_prefix: "Bearer ".to_string(),
             }),
             SecuritySchemeType::ApiKey { in_, name } if in_ == "header" => {
-                let prop = format!("{}ApiKey", to_camel_case(name));
+                let prop = sanitize_php_ident(&format!("{}ApiKey", to_camel_case(name)));
                 Some(AuthSchemeCtx {
                     prop_name: prop.clone(),
                     constructor_param: format!("private readonly ?string ${prop} = null"),
-                    header_name: name.clone(),
+                    header_name: sanitize_php_string_literal(name),
                     header_prefix: String::new(),
                 })
             }
@@ -622,8 +641,8 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
 
     ClientCtx {
         namespace: namespace.to_string(),
-        title: spec.title.clone(),
-        base_url: spec.base_url.clone(),
+        title: sanitize_phpdoc(&spec.title),
+        base_url: sanitize_php_string_literal(&spec.base_url),
         needs_stream_factory,
         model_refs,
         endpoints,

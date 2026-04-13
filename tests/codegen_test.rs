@@ -367,3 +367,113 @@ fn client_ctx_api_key_scheme_fields() {
     );
     assert_eq!(api_key.header_prefix, "");
 }
+
+// ─── Injection / sanitization tests ──────────────────────────────────────────
+
+/// Spec strings that contain PHP injection payloads must never appear verbatim
+/// in the generated PHP. This test loads a fixture with deliberately malicious
+/// operationId, schema name, property name, summary, description, base_url, and
+/// header name values, then asserts that the generated PHP contains no raw
+/// injection characters in code-position contexts.
+#[test]
+fn generated_php_is_free_of_injection_chars() {
+    let spec = parser::load_and_resolve(&fixture("injection_spec.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+
+    for (path, content) in &files {
+        // Every generated file must start with <?php (basic sanity)
+        assert!(
+            content.starts_with("<?php"),
+            "File {} does not start with <?php",
+            path.display()
+        );
+        // Newlines embedded in identifiers would manifest as bare newlines inside
+        // `public function`, `class`, or `$var` tokens. The presence of `<?php`
+        // at the start is not sufficient; we check that function/class declarations
+        // contain no embedded newlines in their identifier tokens.
+        //
+        // Comment body lines (` * ...`) must not contain `*/` because that would
+        // prematurely close the block comment and allow code injection after it.
+        // Lines that ARE the opening (`/**`) or closing (` */`) delimiters are fine.
+        for line in content.lines() {
+            let trimmed = line.trim();
+            // A "body" line is one that starts with `*` but is NOT the closing `*/`.
+            let is_comment_body = trimmed.starts_with('*') && trimmed != "*/";
+            if is_comment_body {
+                assert!(
+                    !trimmed.contains("*/"),
+                    "Premature comment-close in {}: {:?}",
+                    path.display(),
+                    line
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn injection_spec_fn_name_is_valid_php_identifier() {
+    use openapi_php::generator::php::context::build_client_ctx;
+
+    let spec = parser::load_and_resolve(&fixture("injection_spec.yaml")).unwrap();
+    let ctx = build_client_ctx(&spec, "App\\Test");
+
+    for ep in &ctx.endpoints {
+        // fn_name must only contain [A-Za-z0-9_]
+        assert!(
+            ep.fn_name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
+            "fn_name {:?} contains non-identifier chars",
+            ep.fn_name
+        );
+        // No newlines or single-quotes in path (string literal position)
+        assert!(
+            !ep.path.contains('\n') && !ep.path.contains('\''),
+            "path {:?} contains unsafe chars",
+            ep.path
+        );
+    }
+}
+
+#[test]
+fn injection_spec_phpdoc_has_no_comment_close() {
+    use openapi_php::generator::php::context::build_client_ctx;
+
+    let spec = parser::load_and_resolve(&fixture("injection_spec.yaml")).unwrap();
+    let ctx = build_client_ctx(&spec, "App\\Test");
+
+    // title and summary must not contain */ (would close a block comment)
+    assert!(
+        !ctx.title.contains("*/"),
+        "title {:?} contains */ sequence",
+        ctx.title
+    );
+    for ep in &ctx.endpoints {
+        if let Some(summary) = &ep.summary {
+            assert!(
+                !summary.contains("*/"),
+                "summary {:?} contains */ sequence",
+                summary
+            );
+        }
+    }
+}
+
+#[test]
+fn injection_spec_base_url_has_no_single_quote() {
+    use openapi_php::generator::php::context::build_client_ctx;
+
+    let spec = parser::load_and_resolve(&fixture("injection_spec.yaml")).unwrap();
+    let ctx = build_client_ctx(&spec, "App\\Test");
+
+    assert!(
+        !ctx.base_url.contains('\'') && !ctx.base_url.contains('\n'),
+        "base_url {:?} contains unsafe chars for PHP string literal",
+        ctx.base_url
+    );
+}

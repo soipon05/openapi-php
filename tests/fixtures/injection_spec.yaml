@@ -1,0 +1,39 @@
+openapi: "3.0.3"
+info:
+  title: "Injection */ Test"
+  version: "1.0.0"
+  description: "A spec with attacker-controlled */ strings\nand newlines"
+servers:
+  - url: "https://example.com/v1' . system('id') . '"
+paths:
+  "/items/{id}":
+    get:
+      operationId: "getItem\n    public function evil(): void {}\n    public function x"
+      summary: "Get item */ injected\nnewline"
+      parameters:
+        - name: "id"
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: "X-Custom'\nHeader"
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item'\nClass"
+components:
+  schemas:
+    "Item'\nClass":
+      type: object
+      description: "An item */ with injection\nattempt"
+      properties:
+        "name'\nfield":
+          type: string
+          description: "prop */ desc"
