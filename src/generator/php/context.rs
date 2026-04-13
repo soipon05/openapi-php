@@ -89,6 +89,8 @@ pub struct EndpointCtx {
     pub path_expr: String,
     pub has_request_body: bool,
     pub request_body_is_dto: bool,
+    /// "json" | "multipart" | "binary" | "text"
+    pub request_body_mode: String,
     pub return_void: bool,
     /// Model class name for `Name::fromArray(...)` return
     pub return_ref: Option<String>,
@@ -551,6 +553,17 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                     ep.request_body.as_ref().map(|rb| &rb.schema),
                     Some(ResolvedSchema::Ref(_))
                 ),
+                request_body_mode: ep
+                    .request_body
+                    .as_ref()
+                    .map(|rb| match rb.content_type.as_str() {
+                        "application/json" => "json",
+                        "multipart/form-data" => "multipart",
+                        "application/octet-stream" => "binary",
+                        _ => "text",
+                    })
+                    .unwrap_or("json")
+                    .to_string(),
                 return_void,
                 return_ref,
                 return_array,

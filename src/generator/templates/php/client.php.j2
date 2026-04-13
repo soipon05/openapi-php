@@ -73,8 +73,20 @@ final class ApiClient
 {% endfor %}
 {% endif %}
 {% if ep.has_request_body %}
+{% if ep.request_body_mode == "json" %}
         $stream = $this->streamFactory->createStream(json_encode({% if ep.request_body_is_dto %}$body->toArray(){% else %}$body{% endif %}, JSON_THROW_ON_ERROR));
         $request = $request->withBody($stream)->withHeader('Content-Type', 'application/json');
+{% elif ep.request_body_mode == "multipart" %}
+        [$boundary, $multipartBody] = $this->buildMultipartBody($body);
+        $stream = $this->streamFactory->createStream($multipartBody);
+        $request = $request->withBody($stream)->withHeader('Content-Type', 'multipart/form-data; boundary=' . $boundary);
+{% elif ep.request_body_mode == "binary" %}
+        $stream = $body instanceof \Psr\Http\Message\StreamInterface ? $body : $this->streamFactory->createStream((string) $body);
+        $request = $request->withBody($stream)->withHeader('Content-Type', 'application/octet-stream');
+{% else %}
+        $stream = $this->streamFactory->createStream((string) $body);
+        $request = $request->withBody($stream)->withHeader('Content-Type', 'text/plain');
+{% endif %}
 {% endif %}
         $response = $this->httpClient->sendRequest($request);
 {% if ep.error_cases %}
@@ -108,6 +120,32 @@ final class ApiClient
         /** @var array<string, mixed> $data */
         $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
         return $data;
+    }
+
+    /**
+     * Build a multipart/form-data body.
+     *
+     * @param array<string, string|\Psr\Http\Message\StreamInterface> $fields
+     * @return array{0: string, 1: string} [boundary, body]
+     */
+    private function buildMultipartBody(array $fields): array
+    {
+        $boundary = bin2hex(random_bytes(16));
+        $body = '';
+        foreach ($fields as $name => $value) {
+            $body .= "--{$boundary}\r\n";
+            if ($value instanceof \Psr\Http\Message\StreamInterface) {
+                $body .= "Content-Disposition: form-data; name=\"{$name}\"; filename=\"{$name}\"\r\n";
+                $body .= "Content-Type: application/octet-stream\r\n\r\n";
+                $body .= (string) $value;
+            } else {
+                $body .= "Content-Disposition: form-data; name=\"{$name}\"\r\n\r\n";
+                $body .= (string) $value;
+            }
+            $body .= "\r\n";
+        }
+        $body .= "--{$boundary}--\r\n";
+        return [$boundary, $body];
     }
 
     private function assertSuccessful(

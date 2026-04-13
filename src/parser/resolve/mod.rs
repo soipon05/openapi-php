@@ -533,9 +533,28 @@ impl<'a> Resolver<'a> {
             }
         };
 
+        const PRIORITY: &[&str] = &[
+            "application/json",
+            "multipart/form-data",
+            "application/octet-stream",
+            "text/plain",
+        ];
+
+        let content_type = PRIORITY
+            .iter()
+            .find(|&&ct| rb.content.contains_key(ct))
+            .map(|&ct| ct.to_string())
+            .unwrap_or_else(|| {
+                rb.content
+                    .keys()
+                    .next()
+                    .cloned()
+                    .unwrap_or_else(|| "application/json".to_string())
+            });
+
         let schema_ror = rb
             .content
-            .get("application/json")
+            .get(&content_type)
             .and_then(|m| m.schema.as_ref())
             .cloned();
 
@@ -557,6 +576,7 @@ impl<'a> Resolver<'a> {
         Ok(ResolvedRequestBody {
             schema,
             required: rb.required.unwrap_or(false),
+            content_type,
         })
     }
 

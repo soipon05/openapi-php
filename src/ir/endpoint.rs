@@ -49,6 +49,7 @@ pub struct ResolvedParam {
 pub struct ResolvedRequestBody {
     pub schema: ResolvedSchema,
     pub required: bool,
+    pub content_type: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
