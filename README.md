@@ -19,6 +19,9 @@ openapi-php generate --input openapi.yaml --framework laravel
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Generated Code](#generated-code)
+  - [Discriminated Union Types](#discriminated-union-types)
+  - [PHP Version and `readonly`](#php-version-and-readonly)
 - [Configuration file](#configuration-file)
 - [CLI Reference](#cli-reference)
 - [Architecture](#architecture)
@@ -112,6 +115,111 @@ app/Generated/
       PetResource.php        # JsonResource
   routes/
     api.php              # Route::apiResource stubs
+```
+
+---
+
+## Generated Code
+
+### Discriminated Union Types
+
+When a schema uses `oneOf` with a `discriminator.propertyName`, the tool generates a PHP
+`final class` with a `fromArray()` factory that dispatches to the correct subclass based on
+the discriminator field value.
+
+**Input (OpenAPI YAML):**
+
+```yaml
+components:
+  schemas:
+    Shape:
+      oneOf:
+        - $ref: '#/components/schemas/Circle'
+        - $ref: '#/components/schemas/Rectangle'
+      discriminator:
+        propertyName: type
+        mapping:
+          circle: '#/components/schemas/Circle'
+          rectangle: '#/components/schemas/Rectangle'
+```
+
+**Generated PHP:**
+
+```php
+final class Shape
+{
+    private function __construct(
+        public readonly Circle|Rectangle $value,
+    ) {}
+
+    /** @param array<string, mixed> $data */
+    public static function fromArray(array $data): self
+    {
+        return match ((string) ($data['type'] ?? '')) {
+            'circle'    => new self(Circle::fromArray($data)),
+            'rectangle' => new self(Rectangle::fromArray($data)),
+            default     => throw new \UnexpectedValueException(
+                'Shape: unknown discriminator value "' . ($data['type'] ?? '') . '"',
+            ),
+        };
+    }
+
+    /** @return array<string, mixed> */
+    public function toArray(): array
+    {
+        return $this->value->toArray();
+    }
+}
+```
+
+When no `mapping` is provided, the match keys are the schema names as-is (per the OpenAPI
+Specification default). Schemas that use `oneOf` **without** a `discriminator` (or use
+`anyOf`) do not generate a union class.
+
+> **Nullable shorthand** — `oneOf: [{$ref: '#/components/schemas/T'}, {nullable: true}]`
+> resolves to a `?T` typed property rather than generating a union class.
+
+---
+
+### PHP Version and `readonly`
+
+The `--php-version` flag (or `php_version` in `openapi-php.toml`) controls how readonly
+properties are emitted.
+
+| Version | Effect |
+|---------|--------|
+| `8.1` (default) | Each property is annotated with `public readonly` individually |
+| `8.2` or `8.3` | The class declaration becomes `readonly final class`, removing per-property `readonly` |
+
+**PHP 8.1 output (default):**
+
+```php
+final class Pet
+{
+    public function __construct(
+        public readonly string $name,
+        public readonly ?int $age = null,
+    ) {}
+}
+```
+
+**PHP 8.2+ output (`--php-version 8.2`):**
+
+```php
+readonly final class Pet
+{
+    public function __construct(
+        public string $name,
+        public ?int $age = null,
+    ) {}
+}
+```
+
+Set the version in `openapi-php.toml` to avoid repeating the flag:
+
+```toml
+[generator]
+php_version = "8.2"
 ```
 
 ---

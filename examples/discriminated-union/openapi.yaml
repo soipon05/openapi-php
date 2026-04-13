@@ -1,0 +1,84 @@
+openapi: "3.0.3"
+info:
+  title: Discriminated Union Example
+  description: >
+    Demonstrates oneOf discriminated union and nullable $ref properties.
+    All data is synthetic — used as a code-generation example only.
+  version: "1.0.0"
+
+paths: {}
+
+components:
+  schemas:
+
+    # ── Variant types ────────────────────────────────────────────────────────
+
+    Circle:
+      type: object
+      description: A circle shape, identified by its radius.
+      required: [shapeType, radius]
+      properties:
+        shapeType:
+          type: string
+          description: Discriminator field — always "circle" for this variant.
+        radius:
+          type: number
+          format: float
+          description: Radius of the circle in arbitrary units.
+
+    Rectangle:
+      type: object
+      description: A rectangle shape, identified by width and height.
+      required: [shapeType, width, height]
+      properties:
+        shapeType:
+          type: string
+          description: Discriminator field — always "rectangle" for this variant.
+        width:
+          type: number
+          format: float
+          description: Width of the rectangle.
+        height:
+          type: number
+          format: float
+          description: Height of the rectangle.
+
+    # ── Discriminated union with explicit mapping ────────────────────────────
+
+    Shape:
+      description: >
+        A geometric shape. The `shapeType` field is the discriminator;
+        use its value to determine which concrete type to deserialize.
+      oneOf:
+        - $ref: '#/components/schemas/Circle'
+        - $ref: '#/components/schemas/Rectangle'
+      discriminator:
+        propertyName: shapeType
+        mapping:
+          circle: '#/components/schemas/Circle'
+          rectangle: '#/components/schemas/Rectangle'
+
+    # ── Object with a nullable $ref property ────────────────────────────────
+
+    Image:
+      type: object
+      description: >
+        An image resource. The `shape` property is a nullable reference to
+        a Shape — demonstrates the oneOf + null-sentinel pattern.
+      required: [id, url]
+      properties:
+        id:
+          type: integer
+          description: Unique image identifier.
+        url:
+          type: string
+          description: Public URL of the image.
+        shape:
+          description: Optional bounding shape for the image; null when unknown.
+          oneOf:
+            - $ref: '#/components/schemas/Shape'
+            - nullable: true
+        label:
+          type: string
+          description: Human-readable label for the image.
+          nullable: true

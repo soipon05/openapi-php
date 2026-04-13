@@ -19,6 +19,9 @@ openapi-php generate --input openapi.yaml --framework laravel
 - [特徴](#特徴)
 - [インストール](#インストール)
 - [クイックスタート](#クイックスタート)
+- [生成コードの詳細](#生成コードの詳細)
+  - [判別共用体型（Discriminated Union）](#判別共用体型discriminated-union)
+  - [PHP バージョンと readonly](#php-バージョンと-readonly)
 - [設定ファイル](#設定ファイル)
 - [CLI リファレンス](#cli-リファレンス)
 - [アーキテクチャ](#アーキテクチャ)
@@ -112,6 +115,105 @@ app/Generated/
       PetResource.php        # JsonResource
   routes/
     api.php              # Route::apiResource スタブ
+```
+
+---
+
+## 生成コードの詳細
+
+### 判別共用体型（Discriminated Union）
+
+`discriminator.propertyName` を持つ `oneOf` スキーマに対しては、PHP の `final class` が生成されます。`fromArray()` ファクトリメソッドが判別フィールドの値を元に正しいサブクラスへディスパッチします。
+
+**入力（OpenAPI YAML）:**
+
+```yaml
+components:
+  schemas:
+    Shape:
+      oneOf:
+        - $ref: '#/components/schemas/Circle'
+        - $ref: '#/components/schemas/Rectangle'
+      discriminator:
+        propertyName: type
+        mapping:
+          circle: '#/components/schemas/Circle'
+          rectangle: '#/components/schemas/Rectangle'
+```
+
+**生成される PHP:**
+
+```php
+final class Shape
+{
+    private function __construct(
+        public readonly Circle|Rectangle $value,
+    ) {}
+
+    /** @param array<string, mixed> $data */
+    public static function fromArray(array $data): self
+    {
+        return match ((string) ($data['type'] ?? '')) {
+            'circle'    => new self(Circle::fromArray($data)),
+            'rectangle' => new self(Rectangle::fromArray($data)),
+            default     => throw new \UnexpectedValueException(
+                'Shape: unknown discriminator value "' . ($data['type'] ?? '') . '"',
+            ),
+        };
+    }
+
+    /** @return array<string, mixed> */
+    public function toArray(): array
+    {
+        return $this->value->toArray();
+    }
+}
+```
+
+`mapping` を省略した場合は、OpenAPI 仕様のデフォルトに従いスキーマ名がそのままマッチキーになります。`discriminator` を持たない `oneOf` および `anyOf` は union クラスを生成しません。
+
+> **nullable 省略記法** — `oneOf: [{$ref: '#/components/schemas/T'}, {nullable: true}]` は union クラスを生成せず、`?T` 型のプロパティとして解決されます。
+
+---
+
+### PHP バージョンと readonly
+
+`--php-version` フラグ（または `openapi-php.toml` の `php_version`）によって、readonly プロパティの出力形式が変わります。
+
+| バージョン | 効果 |
+|-----------|------|
+| `8.1`（デフォルト） | 各プロパティに個別で `public readonly` を付与 |
+| `8.2` 以上 | クラス宣言が `readonly final class` になり、各プロパティの `readonly` は省略 |
+
+**PHP 8.1 出力（デフォルト）:**
+
+```php
+final class Pet
+{
+    public function __construct(
+        public readonly string $name,
+        public readonly ?int $age = null,
+    ) {}
+}
+```
+
+**PHP 8.2 以上の出力（`--php-version 8.2`）:**
+
+```php
+readonly final class Pet
+{
+    public function __construct(
+        public string $name,
+        public ?int $age = null,
+    ) {}
+}
+```
+
+フラグの繰り返しを避けるには `openapi-php.toml` に記載します:
+
+```toml
+[generator]
+php_version = "8.2"
 ```
 
 ---
