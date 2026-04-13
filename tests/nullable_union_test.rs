@@ -1,7 +1,3 @@
-//! nullable_union_test.rs
-//!
-//! Tests for `oneOf: [{$ref: T}, {nullable: true}]` → `?T` PHP type generation.
-
 use openapi_php::config::PhpVersion;
 use openapi_php::generator::{CodegenBackend, CodegenContext, PlainPhpBackend};
 use openapi_php::parser;

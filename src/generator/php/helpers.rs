@@ -12,12 +12,6 @@ use std::collections::BTreeSet;
 
 // ─── Nullable-ref union detection ────────────────────────────────────────
 
-/// Returns the referenced class name if this union is a nullable reference pattern,
-/// i.e. exactly one `Ref` variant plus any number of `Primitive` variants (null sentinels).
-///
-/// Handles both OAS 3.0 (`oneOf: [{$ref: T}, {nullable: true}]`) and simple
-/// single-Ref unions where the null sentinel is an empty/mixed primitive schema.
-/// Returns `None` for genuine multi-type unions.
 pub fn nullable_ref_name(schema: &UnionSchema) -> Option<&str> {
     let mut ref_name: Option<&str> = None;
     let mut has_null_sentinel = false;
