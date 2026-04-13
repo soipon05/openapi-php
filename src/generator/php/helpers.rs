@@ -7,8 +7,42 @@
 
 pub use crate::php_utils::{PHP_RESERVED, escape_reserved, to_camel_case, to_pascal_case};
 
-use crate::ir::{EnumBackingType, PhpPrimitive, ResolvedParam, ResolvedSchema};
+use crate::ir::{EnumBackingType, PhpPrimitive, ResolvedParam, ResolvedSchema, UnionSchema};
 use std::collections::BTreeSet;
+
+// ─── Nullable-ref union detection ────────────────────────────────────────
+
+/// Returns the referenced class name if this union is a nullable reference pattern,
+/// i.e. exactly one `Ref` variant plus any number of `Primitive` variants (null sentinels).
+///
+/// Handles both OAS 3.0 (`oneOf: [{$ref: T}, {nullable: true}]`) and simple
+/// single-Ref unions where the null sentinel is an empty/mixed primitive schema.
+/// Returns `None` for genuine multi-type unions.
+pub fn nullable_ref_name(schema: &UnionSchema) -> Option<&str> {
+    let mut ref_name: Option<&str> = None;
+    let mut has_null_sentinel = false;
+
+    for variant in &schema.variants {
+        match variant {
+            ResolvedSchema::Ref(n) => {
+                if ref_name.is_some() {
+                    return None; // multiple Refs → genuine union, not nullable
+                }
+                ref_name = Some(n.as_ref());
+            }
+            ResolvedSchema::Primitive(_) => {
+                has_null_sentinel = true;
+            }
+            _ => return None, // Object / Array / Enum / nested Union → not a nullable ref
+        }
+    }
+
+    if ref_name.is_some() && has_null_sentinel {
+        ref_name
+    } else {
+        None
+    }
+}
 
 // ─── PHP type mapping ─────────────────────────────────────────────────────
 
@@ -30,7 +64,12 @@ pub fn schema_to_php_type(schema: &ResolvedSchema, nullable: bool) -> String {
             EnumBackingType::String => ("string".to_string(), false),
             EnumBackingType::Int => ("int".to_string(), false),
         },
-        ResolvedSchema::Union(_) => ("mixed".to_string(), false),
+        ResolvedSchema::Union(u) => {
+            if let Some(name) = nullable_ref_name(u) {
+                return format!("?{name}");
+            }
+            ("mixed".to_string(), false)
+        }
         ResolvedSchema::Ref(name) => (name.to_string(), false),
     };
     let is_nullable = nullable || schema_nullable;
@@ -83,6 +122,14 @@ pub fn inner_from_array(key: &str, schema: &ResolvedSchema) -> String {
 }
 
 pub fn from_array_expr(key: &str, schema: &ResolvedSchema, nullable: bool) -> String {
+    // Nullable-ref union: always use the isset pattern regardless of prop.required,
+    // because the union itself declares that null is a valid value.
+    if let ResolvedSchema::Union(u) = schema
+        && let Some(name) = nullable_ref_name(u)
+    {
+        return format!("isset($data['{key}']) ? {name}::fromArray($data['{key}']) : null");
+    }
+
     if nullable {
         let inner = inner_from_array(key, schema);
         format!("isset($data['{key}']) ? {inner} : null")
@@ -123,6 +170,10 @@ pub fn to_array_expr(_key: &str, camel: &str, schema: &ResolvedSchema, nullable:
             } else {
                 format!("$this->{camel}->value")
             }
+        }
+        ResolvedSchema::Union(u) if nullable_ref_name(u).is_some() => {
+            // Nullable-ref union always uses ?->toArray() because null is a valid value.
+            format!("$this->{camel}?->toArray()")
         }
         _ => format!("$this->{camel}"),
     }

@@ -1,0 +1,35 @@
+openapi: "3.0.3"
+info:
+  title: Nullable Ref Union Test
+  version: "0.1.0"
+paths: {}
+components:
+  schemas:
+    Category:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    # Object with a nullable $ref property using oneOf + nullable: true sentinel
+    Item:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        # Required property, but the type is nullable via oneOf
+        category:
+          oneOf:
+            - $ref: '#/components/schemas/Category'
+            - nullable: true
+        # Optional property that is also nullable via oneOf
+        secondaryCategory:
+          oneOf:
+            - $ref: '#/components/schemas/Category'
+            - nullable: true
