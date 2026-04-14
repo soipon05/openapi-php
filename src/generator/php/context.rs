@@ -49,12 +49,16 @@ pub struct PropertyCtx {
     pub required: bool,
     pub is_array: bool,
     pub items_type: String,
-    /// PHPStan wire type for array items (used in `list<T>` shapes).
-    /// For enum items this is the backing scalar (`"string"` or `"int"`),
-    /// for DTO items it is `"array<string, mixed>"`,
-    /// for primitive items it is the primitive type.
-    /// Empty string when `is_array` is false.
-    pub items_phpstan_type: String,
+    /// Full PHPStan wire type for this property's value in `fromArray`/`toArray` shapes.
+    ///
+    /// Computed with full schema context so enum refs resolve to their backing scalar
+    /// and array properties are expressed as `list<T>`. Examples:
+    /// - `int`, `string`, `bool`
+    /// - `string`  (for a `PetStatus` string-backed enum ref)
+    /// - `array<string, mixed>`  (for a DTO ref)
+    /// - `list<string>`          (for `array<string>`)
+    /// - `list<array<string, mixed>>`  (for `array<SomeDto>`)
+    pub phpstan_wire: String,
     pub description: Option<String>,
     /// OpenAPI `format` value for primitive properties (e.g. "uuid", "email", "uri").
     /// `None` for non-primitive properties or primitives without a declared format.
@@ -212,14 +216,12 @@ pub fn build_model_ctx(
             let php_type = schema_to_php_type(&prop.schema, nullable);
             let camel = sanitize_php_ident(&escape_reserved(&to_camel_case(prop_name)));
             let is_array = matches!(prop.schema, ResolvedSchema::Array(_));
-            let (items_type, items_phpstan_type) =
-                if let ResolvedSchema::Array(arr) = &prop.schema {
-                    let itype = items_type_name(&arr.items);
-                    let phpstan = phpstan_items_wire_type(&arr.items, schemas);
-                    (itype, phpstan)
-                } else {
-                    (String::new(), String::new())
-                };
+            let items_type = if let ResolvedSchema::Array(arr) = &prop.schema {
+                items_type_name(&arr.items)
+            } else {
+                String::new()
+            };
+            let phpstan_wire = compute_phpstan_wire(&prop.schema, schemas, &php_type);
             let (from_expr, to_expr) = match &prop.schema {
                 ResolvedSchema::Ref(ref_name) => {
                     let is_enum = schemas
@@ -248,14 +250,15 @@ pub fn build_model_ctx(
                     }
                 }
                 ResolvedSchema::Array(arr) => {
-                    let from_e = match arr.items.as_ref() {
+                    let (from_e, to_e) = match arr.items.as_ref() {
                         ResolvedSchema::Ref(rname) => {
                             let is_enum = schemas
                                 .get(rname.as_ref())
                                 .map(|s| matches!(s, ResolvedSchema::Enum(_)))
                                 .unwrap_or(false);
                             if is_enum {
-                                if nullable {
+                                // fromArray: cast each scalar to enum via ::from()
+                                let from_e = if nullable {
                                     format!(
                                         "isset($data['{prop_name}']) ? array_map(fn($item) => {rname}::from($item), $data['{prop_name}']) : null"
                                     )
@@ -263,14 +266,31 @@ pub fn build_model_ctx(
                                     format!(
                                         "array_map(fn($item) => {rname}::from($item), $data['{prop_name}'] ?? [])"
                                     )
-                                }
+                                };
+                                // toArray: extract ->value from each enum; guard against null array
+                                let to_e = if nullable {
+                                    format!("$this->{camel} !== null ? array_map(fn($item) => $item->value, $this->{camel}) : null")
+                                } else {
+                                    format!("array_map(fn($item) => $item->value, $this->{camel})")
+                                };
+                                (from_e, to_e)
                             } else {
-                                from_array_expr(prop_name, &prop.schema, nullable)
+                                // DTO array: guard against null array before array_map
+                                let from_e =
+                                    from_array_expr(prop_name, &prop.schema, nullable);
+                                let to_e = if nullable {
+                                    format!("$this->{camel} !== null ? array_map(fn($item) => $item->toArray(), $this->{camel}) : null")
+                                } else {
+                                    format!("array_map(fn($item) => $item->toArray(), $this->{camel})")
+                                };
+                                (from_e, to_e)
                             }
                         }
-                        _ => from_array_expr(prop_name, &prop.schema, nullable),
+                        _ => (
+                            from_array_expr(prop_name, &prop.schema, nullable),
+                            to_array_expr(prop_name, &camel, &prop.schema, nullable),
+                        ),
                     };
-                    let to_e = to_array_expr(prop_name, &camel, &prop.schema, nullable);
                     (from_e, to_e)
                 }
                 _ => (
@@ -297,7 +317,7 @@ pub fn build_model_ctx(
                 required: prop.required && !prop.nullable,
                 is_array,
                 items_type,
-                items_phpstan_type,
+                phpstan_wire,
                 description: prop.description.as_deref().map(sanitize_phpdoc),
                 format,
                 from_array_expr: from_expr,
@@ -506,9 +526,11 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
         .iter()
         .flat_map(|ep| {
             let mut refs = Vec::new();
+            // Response DTO
             if let Some(ResolvedSchema::Ref(n)) = &ep.response {
                 refs.push(sanitize_php_ident(n));
             }
+            // Error response DTOs
             for er in &ep.error_responses {
                 if let Some(ResolvedSchema::Ref(n)) = &er.schema {
                     let is_enum = spec
@@ -518,6 +540,16 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                     if !is_enum {
                         refs.push(sanitize_php_ident(n));
                     }
+                }
+            }
+            // Request body DTO (BUG-3: was not collected before)
+            if let Some(ResolvedSchema::Ref(n)) = ep.request_body.as_ref().map(|rb| &rb.schema) {
+                let is_enum = spec
+                    .schemas
+                    .get(n.as_ref())
+                    .is_some_and(|s| matches!(s, ResolvedSchema::Enum(_)));
+                if !is_enum {
+                    refs.push(sanitize_php_ident(n));
                 }
             }
             refs
@@ -718,43 +750,59 @@ fn phpstan_scalar_type(php_type: &str) -> String {
 
 /// Build a single PHPStan shape entry for the `fromArray @param` annotation.
 ///
-/// - Required non-nullable → `'key': type`  (key must exist, value is non-null)
-/// - Optional or nullable  → `'key'?: type|null` (key may be absent or value may be null)
-/// - Array properties      → `list<T>` using the items element type
+/// - Required non-nullable → `'key': type`
+/// - Optional or nullable  → `'key'?: type|null`
 fn phpstan_from_entry(p: &PropertyCtx) -> String {
     let key_required = p.required && !p.php_type.starts_with('?');
     let key_opt = if key_required { "" } else { "?" };
-    let base_type = phpstan_wire_type(p);
     let full_type = if p.php_type.starts_with('?') {
-        format!("{base_type}|null")
+        format!("{}|null", p.phpstan_wire)
     } else {
-        base_type
+        p.phpstan_wire.clone()
     };
     format!("'{}'{}: {}", p.name, key_opt, full_type)
 }
 
 /// Build a single PHPStan shape entry for the `toArray @return` annotation.
 ///
-/// `array_filter` removes null values from the output, so:
-/// - Required non-nullable → `'key': type`  (always present, always non-null)
-/// - Nullable or optional  → `'key'?: type` (may be absent; if present it is non-null)
-/// - Array properties      → `list<T>` using the items element type
+/// `array_filter` removes null values, so nullable keys are optional (`?`)
+/// but their value type is always non-null.
 fn phpstan_to_entry(p: &PropertyCtx) -> String {
     let always_present = p.required && !p.php_type.starts_with('?');
     let key_opt = if always_present { "" } else { "?" };
-    let base_type = phpstan_wire_type(p);
-    format!("'{}'{}: {}", p.name, key_opt, base_type)
+    format!("'{}'{}: {}", p.name, key_opt, p.phpstan_wire)
 }
 
-/// Resolve the PHPStan wire type for a property.
+/// Compute the full PHPStan wire type for a property given complete schema context.
 ///
-/// - Array properties (`is_array=true`): `list<items_phpstan_type>`
-/// - Non-array: delegate to `phpstan_scalar_type`
-fn phpstan_wire_type(p: &PropertyCtx) -> String {
-    if p.is_array {
-        format!("list<{}>", p.items_phpstan_type)
-    } else {
-        phpstan_scalar_type(&p.php_type)
+/// This is stored in `PropertyCtx.phpstan_wire` and used directly in shape entries.
+///
+/// | Schema kind       | Result                   |
+/// |-------------------|--------------------------|
+/// | Array of enum     | `list<string\|int>`      |
+/// | Array of DTO      | `list<array<s,m>>`       |
+/// | Array of prim     | `list<string>` etc.      |
+/// | Ref → enum        | backing scalar           |
+/// | Ref → DTO         | `array<string, mixed>`   |
+/// | Primitive/DateTime| scalar / `string`        |
+fn compute_phpstan_wire(
+    schema: &ResolvedSchema,
+    schemas: &IndexMap<String, ResolvedSchema>,
+    php_type: &str,
+) -> String {
+    match schema {
+        ResolvedSchema::Array(arr) => {
+            let item_wire = phpstan_items_wire_type(&arr.items, schemas);
+            format!("list<{item_wire}>")
+        }
+        ResolvedSchema::Ref(name) => match schemas.get(name.as_ref()) {
+            Some(ResolvedSchema::Enum(e)) => match e.backing_type {
+                EnumBackingType::String => "string".to_string(),
+                EnumBackingType::Int => "int".to_string(),
+            },
+            _ => "array<string, mixed>".to_string(),
+        },
+        _ => phpstan_scalar_type(php_type),
     }
 }
 

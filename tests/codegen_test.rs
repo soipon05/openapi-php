@@ -874,3 +874,108 @@ fn phpstan_shape_enum_array_emits_list_of_backing_type() {
         "Enum array must not fall back to list<array<string,mixed>>:\n{item}"
     );
 }
+
+// ─── BUG regression tests ─────────────────────────────────────────────────────
+
+/// BUG-1: nullable な DTO 配列プロパティの toArray() で array_map に null が渡らないこと。
+/// 修正前: `array_map(fn($item) => $item->toArray(), $this->tags)` → null で TypeError
+/// 修正後: null ガード付き
+#[test]
+fn nullable_dto_array_to_array_has_null_guard() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let pet = files[&PathBuf::from("Models/Pet.php")].as_str();
+
+    // nullable な tags プロパティの toArray は null ガードが必要
+    assert!(
+        pet.contains("$this->tags !== null"),
+        "nullable DTO array toArray must guard against null before array_map:\n{pet}"
+    );
+    // null ガードなしで先頭から array_map を呼ぶ危険なパターンがないこと
+    // 安全版: `$this->tags !== null ? array_map(...)` は OK
+    // 危険版: `'tags' => array_map(...)` は NG
+    assert!(
+        !pet.contains("=> array_map(fn($item) => $item->toArray(), $this->tags)"),
+        "unguarded array_map on nullable array must not appear:\n{pet}"
+    );
+}
+
+/// BUG-2: enum 配列プロパティの toArray() が ->toArray() ではなく ->value を使うこと。
+/// BackedEnum に toArray() は存在しない。
+#[test]
+fn enum_array_to_array_uses_value_not_to_array() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    // tags は array<ItemStatus> (BackedEnum) → toArray では ->value を使う
+    assert!(
+        item.contains("$item->value"),
+        "enum array toArray must use ->value, not ->toArray():\n{item}"
+    );
+    // ->toArray() が enum 配列に対して呼ばれていないこと
+    assert!(
+        !item.contains("array_map(fn($item) => $item->toArray(), $this->tags)"),
+        "enum array toArray must not call ->toArray() on BackedEnum:\n{item}"
+    );
+}
+
+/// BUG-3: ApiClient に requestBody DTO の use インポートが含まれること。
+/// 修正前: NewPet を body 引数として使うのに use App\...\NewPet がなかった。
+#[test]
+fn api_client_imports_request_body_dto() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
+
+    // createPet と updatePet が NewPet を requestBody として使う
+    assert!(
+        client.contains("use App\\Test\\Models\\NewPet;"),
+        "ApiClient must import NewPet used as request body:\n{client}"
+    );
+}
+
+/// BUG-4: 単体の enum Ref プロパティの PHPStan shape が backing scalar 型になること。
+/// 修正前: PetStatus のような enum Ref が array<string,mixed> になっていた。
+#[test]
+fn phpstan_shape_single_enum_ref_uses_backing_type() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let pet = files[&PathBuf::from("Models/Pet.php")].as_str();
+
+    // status は PetStatus (string-backed enum) → shape では string
+    assert!(
+        pet.contains("'status'?: string"),
+        "String-backed enum Ref must appear as 'status'?: string in shape:\n{pet}"
+    );
+    // array<string,mixed> にフォールバックしていないこと
+    assert!(
+        !pet.contains("'status'?: array<string, mixed>")
+            && !pet.contains("'status': array<string, mixed>"),
+        "enum Ref must not appear as array<string,mixed> in shape:\n{pet}"
+    );
+}
