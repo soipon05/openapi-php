@@ -114,3 +114,27 @@ pub fn sanitize_phpdoc(s: &str) -> String {
         .collect::<String>()
         .replace("*/", "* /")
 }
+
+// ─── Namespace validation ──────────────────────────────────────────────────
+
+/// Validate that a PHP namespace string contains only allowed characters.
+///
+/// Valid chars: ASCII letters, digits, underscore, and backslash (namespace separator).
+/// Empty namespaces are rejected — callers should supply a non-empty value.
+pub fn validate_namespace(ns: &str) -> anyhow::Result<()> {
+    if ns.is_empty() {
+        anyhow::bail!("Namespace must not be empty");
+    }
+    let invalid: String = ns
+        .chars()
+        .filter(|&c| !c.is_ascii_alphanumeric() && c != '_' && c != '\\')
+        .collect();
+    if !invalid.is_empty() {
+        anyhow::bail!(
+            "Namespace {:?} contains invalid character(s): {:?}",
+            ns,
+            invalid
+        );
+    }
+    Ok(())
+}

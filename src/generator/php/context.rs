@@ -710,7 +710,7 @@ fn phpstan_scalar_type(php_type: &str) -> String {
 ///
 /// - Required non-nullable → `'key': type`  (key must exist, value is non-null)
 /// - Optional or nullable  → `'key'?: type|null` (key may be absent or value may be null)
-pub fn phpstan_from_entry(p: &PropertyCtx) -> String {
+fn phpstan_from_entry(p: &PropertyCtx) -> String {
     let key_required = p.required && !p.php_type.starts_with('?');
     let key_opt = if key_required { "" } else { "?" };
     let base_type = phpstan_scalar_type(&p.php_type);
@@ -727,7 +727,7 @@ pub fn phpstan_from_entry(p: &PropertyCtx) -> String {
 /// `array_filter` removes null values from the output, so:
 /// - Required non-nullable → `'key': type`  (always present, always non-null)
 /// - Nullable or optional  → `'key'?: type` (may be absent; if present it is non-null)
-pub fn phpstan_to_entry(p: &PropertyCtx) -> String {
+fn phpstan_to_entry(p: &PropertyCtx) -> String {
     let always_present = p.required && !p.php_type.starts_with('?');
     let key_opt = if always_present { "" } else { "?" };
     let base_type = phpstan_scalar_type(&p.php_type);

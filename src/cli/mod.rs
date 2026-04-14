@@ -7,7 +7,7 @@ use std::sync::mpsc::RecvTimeoutError;
 use std::time::{Duration, Instant};
 
 use crate::config::{CliOverrides, Config, Framework, PhpVersion};
-use crate::php_utils::to_pascal_case;
+use crate::php_utils::{to_pascal_case, validate_namespace};
 
 #[derive(Parser)]
 #[command(name = "openapi-php")]
@@ -337,27 +337,6 @@ fn normalize_path(path: &Path) -> PathBuf {
             .unwrap_or_else(|_| PathBuf::from("."))
             .join(path)
     }
-}
-
-// ─── Validation helpers ────────────────────────────────────────────────────
-
-/// Validate that a PHP namespace contains only allowed characters.
-///
-/// Valid chars: ASCII letters, digits, underscore, backslash (namespace separator).
-/// Leading/trailing backslashes are allowed (normalised by downstream code).
-fn validate_namespace(ns: &str) -> Result<()> {
-    let invalid: String = ns
-        .chars()
-        .filter(|&c| !c.is_ascii_alphanumeric() && c != '_' && c != '\\')
-        .collect();
-    if !invalid.is_empty() {
-        bail!(
-            "Namespace {:?} contains invalid character(s): {:?}",
-            ns,
-            invalid
-        );
-    }
-    Ok(())
 }
 
 // ─── Multi-spec helpers ────────────────────────────────────────────────────

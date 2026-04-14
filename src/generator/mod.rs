@@ -36,6 +36,16 @@ fn make_backend(
 
 // ─── Public API ───────────────────────────────────────────────────────────
 
+/// Write generated PHP files to `output`.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - Any generated file's relative path contains `..` (path traversal attempt).
+/// - Any filesystem operation (directory creation, file write) fails.
+///
+/// Note: `run_dry_filtered` does not write files and therefore does not apply
+/// the path-traversal guard.
 pub fn run(
     spec: &ResolvedSpec,
     output: &Path,

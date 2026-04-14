@@ -101,7 +101,7 @@ final class ApiClient
         if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
             $rawBody = (string) $response->getBody();
             if (strlen($rawBody) > 2048) {
-                $rawBody = substr($rawBody, 0, 2048) . '…';
+                $rawBody = substr($rawBody, 0, 2048);
             }
             $errorBody = json_decode($rawBody, true) ?? [];
             throw match ($response->getStatusCode()) {
