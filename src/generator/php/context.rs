@@ -257,7 +257,6 @@ pub fn build_model_ctx(
                                 .map(|s| matches!(s, ResolvedSchema::Enum(_)))
                                 .unwrap_or(false);
                             if is_enum {
-                                // fromArray: cast each scalar to enum via ::from()
                                 let from_e = if nullable {
                                     format!(
                                         "isset($data['{prop_name}']) ? array_map(fn($item) => {rname}::from($item), $data['{prop_name}']) : null"
@@ -267,7 +266,6 @@ pub fn build_model_ctx(
                                         "array_map(fn($item) => {rname}::from($item), $data['{prop_name}'] ?? [])"
                                     )
                                 };
-                                // toArray: extract ->value from each enum; guard against null array
                                 let to_e = if nullable {
                                     format!("$this->{camel} !== null ? array_map(fn($item) => $item->value, $this->{camel}) : null")
                                 } else {
@@ -275,7 +273,6 @@ pub fn build_model_ctx(
                                 };
                                 (from_e, to_e)
                             } else {
-                                // DTO array: guard against null array before array_map
                                 let from_e =
                                     from_array_expr(prop_name, &prop.schema, nullable);
                                 let to_e = if nullable {
@@ -542,7 +539,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                     }
                 }
             }
-            // Request body DTO (BUG-3: was not collected before)
+            // Request body DTO
             if let Some(ResolvedSchema::Ref(n)) = ep.request_body.as_ref().map(|rb| &rb.schema) {
                 let is_enum = spec
                     .schemas
