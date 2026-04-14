@@ -100,6 +100,9 @@ final class ApiClient
 {% if ep.error_cases %}
         if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
             $rawBody = (string) $response->getBody();
+            if (strlen($rawBody) > 2048) {
+                $rawBody = substr($rawBody, 0, 2048) . '…';
+            }
             $errorBody = json_decode($rawBody, true) ?? [];
             throw match ($response->getStatusCode()) {
 {% for ec in ep.error_cases %}
@@ -141,13 +144,15 @@ final class ApiClient
         $boundary = bin2hex(random_bytes(16));
         $body = '';
         foreach ($fields as $name => $value) {
+            // Strip chars that would break Content-Disposition header syntax
+            $safeName = str_replace(["\r", "\n", '"', '\\'], '', (string) $name);
             $body .= "--{$boundary}\r\n";
             if ($value instanceof \Psr\Http\Message\StreamInterface) {
-                $body .= "Content-Disposition: form-data; name=\"{$name}\"; filename=\"{$name}\"\r\n";
+                $body .= "Content-Disposition: form-data; name=\"{$safeName}\"; filename=\"{$safeName}\"\r\n";
                 $body .= "Content-Type: application/octet-stream\r\n\r\n";
                 $body .= (string) $value;
             } else {
-                $body .= "Content-Disposition: form-data; name=\"{$name}\"\r\n\r\n";
+                $body .= "Content-Disposition: form-data; name=\"{$safeName}\"\r\n\r\n";
                 $body .= (string) $value;
             }
             $body .= "\r\n";

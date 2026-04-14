@@ -126,6 +126,7 @@ impl Args {
                     }
 
                     let prefix = namespace_prefix.unwrap_or_else(|| "App\\Generated".to_string());
+                    validate_namespace(&prefix)?;
                     let output_base = output.unwrap_or_else(|| PathBuf::from("generated"));
 
                     let cli_framework = framework.as_deref().map(Framework::parse).transpose()?;
@@ -188,6 +189,7 @@ impl Args {
                 })?;
                 let output_path = merged.output.unwrap_or_else(|| PathBuf::from("generated"));
                 let namespace = merged.namespace;
+                validate_namespace(&namespace)?;
 
                 let options = GenerateOptions {
                     input_path,
@@ -334,6 +336,27 @@ fn normalize_path(path: &Path) -> PathBuf {
             .unwrap_or_else(|_| PathBuf::from("."))
             .join(path)
     }
+}
+
+// ─── Validation helpers ────────────────────────────────────────────────────
+
+/// Validate that a PHP namespace contains only allowed characters.
+///
+/// Valid chars: ASCII letters, digits, underscore, backslash (namespace separator).
+/// Leading/trailing backslashes are allowed (normalised by downstream code).
+fn validate_namespace(ns: &str) -> Result<()> {
+    let invalid: String = ns
+        .chars()
+        .filter(|&c| !c.is_ascii_alphanumeric() && c != '_' && c != '\\')
+        .collect();
+    if !invalid.is_empty() {
+        bail!(
+            "Namespace {:?} contains invalid character(s): {:?}",
+            ns,
+            invalid
+        );
+    }
+    Ok(())
 }
 
 // ─── Multi-spec helpers ────────────────────────────────────────────────────

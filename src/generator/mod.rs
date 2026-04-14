@@ -7,7 +7,7 @@
 use crate::cli::GenerateMode;
 use crate::config::{Framework, PhpVersion};
 use crate::ir::ResolvedSpec;
-use anyhow::Result;
+use anyhow::{Result, bail};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -57,6 +57,12 @@ pub fn run(
 
     for file in &files {
         if backend.filter_by_mode(&file.rel_path, &mode) {
+            if path_escapes_base(&file.rel_path) {
+                bail!(
+                    "Generated file path escapes output directory: {}",
+                    file.rel_path.display()
+                );
+            }
             let full_path = output.join(&file.rel_path);
             if let Some(parent) = full_path.parent() {
                 std::fs::create_dir_all(parent)?;
@@ -171,6 +177,14 @@ pub fn run_diff(
         println!("✅ No changes ({} file(s) up to date)", total);
         Ok(false)
     }
+}
+
+/// Returns `true` if `rel_path` contains a `..` (ParentDir) component that
+/// would allow a generated file to escape the intended output directory.
+fn path_escapes_base(rel_path: &Path) -> bool {
+    rel_path
+        .components()
+        .any(|c| c == std::path::Component::ParentDir)
 }
 
 fn print_diff(old_label: &str, new_label: &str, old: &str, new: &str) {
