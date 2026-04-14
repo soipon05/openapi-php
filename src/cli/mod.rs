@@ -7,6 +7,7 @@ use std::sync::mpsc::RecvTimeoutError;
 use std::time::{Duration, Instant};
 
 use crate::config::{CliOverrides, Config, Framework, PhpVersion};
+use crate::php_utils::to_pascal_case;
 
 #[derive(Parser)]
 #[command(name = "openapi-php")]
@@ -392,29 +393,11 @@ fn derive_namespace_fragment(path: &Path) -> Result<String> {
         stem
     };
 
-    let fragment = to_pascal_case_simple(base);
+    let fragment = to_pascal_case(base);
     if fragment.is_empty() {
         bail!("Derived empty namespace from filename: {}", path.display());
     }
     Ok(fragment)
-}
-
-/// Convert a snake_case / kebab-case / plain lowercase string to PascalCase.
-/// Splits on `_`, `-`, and space; capitalises the first letter of each word.
-fn to_pascal_case_simple(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = true;
-    for ch in s.chars() {
-        if ch == '_' || ch == '-' || ch == ' ' {
-            capitalize_next = true;
-        } else if capitalize_next {
-            result.extend(ch.to_uppercase());
-            capitalize_next = false;
-        } else {
-            result.push(ch);
-        }
-    }
-    result
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
@@ -444,10 +427,10 @@ mod tests {
     }
 
     #[test]
-    fn to_pascal_case_simple_handles_separators() {
-        assert_eq!(to_pascal_case_simple("auth"), "Auth");
-        assert_eq!(to_pascal_case_simple("my_service"), "MyService");
-        assert_eq!(to_pascal_case_simple("my-service"), "MyService");
-        assert_eq!(to_pascal_case_simple("apilog"), "Apilog");
+    fn to_pascal_case_handles_separators() {
+        assert_eq!(to_pascal_case("auth"), "Auth");
+        assert_eq!(to_pascal_case("my_service"), "MyService");
+        assert_eq!(to_pascal_case("my-service"), "MyService");
+        assert_eq!(to_pascal_case("apilog"), "Apilog");
     }
 }
