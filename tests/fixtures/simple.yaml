@@ -79,6 +79,10 @@ components:
           nullable: true
         status:
           $ref: '#/components/schemas/ItemStatus'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemStatus'
         createdAt:
           type: string
           format: date-time

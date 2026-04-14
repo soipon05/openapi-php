@@ -49,6 +49,12 @@ pub struct PropertyCtx {
     pub required: bool,
     pub is_array: bool,
     pub items_type: String,
+    /// PHPStan wire type for array items (used in `list<T>` shapes).
+    /// For enum items this is the backing scalar (`"string"` or `"int"`),
+    /// for DTO items it is `"array<string, mixed>"`,
+    /// for primitive items it is the primitive type.
+    /// Empty string when `is_array` is false.
+    pub items_phpstan_type: String,
     pub description: Option<String>,
     /// OpenAPI `format` value for primitive properties (e.g. "uuid", "email", "uri").
     /// `None` for non-primitive properties or primitives without a declared format.
@@ -206,11 +212,14 @@ pub fn build_model_ctx(
             let php_type = schema_to_php_type(&prop.schema, nullable);
             let camel = sanitize_php_ident(&escape_reserved(&to_camel_case(prop_name)));
             let is_array = matches!(prop.schema, ResolvedSchema::Array(_));
-            let items_type = if let ResolvedSchema::Array(arr) = &prop.schema {
-                items_type_name(&arr.items)
-            } else {
-                String::new()
-            };
+            let (items_type, items_phpstan_type) =
+                if let ResolvedSchema::Array(arr) = &prop.schema {
+                    let itype = items_type_name(&arr.items);
+                    let phpstan = phpstan_items_wire_type(&arr.items, schemas);
+                    (itype, phpstan)
+                } else {
+                    (String::new(), String::new())
+                };
             let (from_expr, to_expr) = match &prop.schema {
                 ResolvedSchema::Ref(ref_name) => {
                     let is_enum = schemas
@@ -288,6 +297,7 @@ pub fn build_model_ctx(
                 required: prop.required && !prop.nullable,
                 is_array,
                 items_type,
+                items_phpstan_type,
                 description: prop.description.as_deref().map(sanitize_phpdoc),
                 format,
                 from_array_expr: from_expr,
@@ -738,12 +748,33 @@ fn phpstan_to_entry(p: &PropertyCtx) -> String {
 
 /// Resolve the PHPStan wire type for a property.
 ///
-/// - Array properties (`is_array=true`): `list<item_wire_type>`
+/// - Array properties (`is_array=true`): `list<items_phpstan_type>`
 /// - Non-array: delegate to `phpstan_scalar_type`
 fn phpstan_wire_type(p: &PropertyCtx) -> String {
     if p.is_array {
-        format!("list<{}>", phpstan_scalar_type(&p.items_type))
+        format!("list<{}>", p.items_phpstan_type)
     } else {
         phpstan_scalar_type(&p.php_type)
+    }
+}
+
+/// Resolve the PHPStan wire type for array items, with full schema context.
+///
+/// - Enum ref    → backing scalar type (`"string"` or `"int"`)
+/// - DTO ref     → `"array<string, mixed>"`
+/// - Primitive   → the primitive type (via `phpstan_scalar_type`)
+fn phpstan_items_wire_type(
+    items: &ResolvedSchema,
+    schemas: &IndexMap<String, ResolvedSchema>,
+) -> String {
+    match items {
+        ResolvedSchema::Ref(name) => match schemas.get(name.as_ref()) {
+            Some(ResolvedSchema::Enum(e)) => match e.backing_type {
+                EnumBackingType::String => "string".to_string(),
+                EnumBackingType::Int => "int".to_string(),
+            },
+            _ => "array<string, mixed>".to_string(),
+        },
+        other => phpstan_scalar_type(&items_type_name(other)),
     }
 }

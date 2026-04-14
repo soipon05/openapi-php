@@ -847,3 +847,30 @@ fn phpstan_shape_primitive_array_emits_list_of_primitive() {
         "photoUrls property must not appear as bare array<string, mixed>:\n{pet}"
     );
 }
+
+/// Array of BackedEnum items must emit `list<string>` or `list<int>` (the backing
+/// scalar type), NOT `list<array<string,mixed>>` which is wrong for enums.
+#[test]
+fn phpstan_shape_enum_array_emits_list_of_backing_type() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    // `tags` is array<ItemStatus> where ItemStatus is a string-backed enum.
+    // Wire type for string enum is the backing scalar → list<string>.
+    assert!(
+        item.contains("'tags'?: list<string>"),
+        "String-backed enum array must emit list<string> in shape:\n{item}"
+    );
+    // Must NOT emit list<array<string,mixed>> for an enum
+    assert!(
+        !item.contains("list<array<string, mixed>>"),
+        "Enum array must not fall back to list<array<string,mixed>>:\n{item}"
+    );
+}
