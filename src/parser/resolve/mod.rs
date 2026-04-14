@@ -83,11 +83,7 @@ pub fn resolve(raw: &RawOpenApi) -> Result<ResolvedSpec> {
                 .filter_map(|(scheme_name, raw_scheme)| {
                     let scheme_type = match raw_scheme.scheme_type.as_str() {
                         "http" => {
-                            let s = raw_scheme
-                                .scheme
-                                .as_deref()
-                                .unwrap_or("")
-                                .to_lowercase();
+                            let s = raw_scheme.scheme.as_deref().unwrap_or("").to_lowercase();
                             Some(SecuritySchemeType::Http { scheme: s })
                         }
                         "apiKey" => {
@@ -96,11 +92,7 @@ pub fn resolve(raw: &RawOpenApi) -> Result<ResolvedSpec> {
                                 .as_deref()
                                 .unwrap_or("header")
                                 .to_string();
-                            let key_name = raw_scheme
-                                .name
-                                .as_deref()
-                                .unwrap_or("")
-                                .to_string();
+                            let key_name = raw_scheme.name.as_deref().unwrap_or("").to_string();
                             Some(SecuritySchemeType::ApiKey {
                                 in_,
                                 name: key_name,
@@ -669,9 +661,7 @@ impl<'a> Resolver<'a> {
             let schema = match schema_ror {
                 // Inline primitive refs (e.g. $ref: ErrorCode when ErrorCode is type: string).
                 // Preserve Ref for Object/Enum/Union so exception generators can name the class.
-                Some(RawOrRef::Ref { ref_path }) => {
-                    Some(self.resolve_ref_or_inline(&ref_path)?)
-                }
+                Some(RawOrRef::Ref { ref_path }) => Some(self.resolve_ref_or_inline(&ref_path)?),
                 Some(ror) => Some(self.resolve_schema_or_ref(&ror)?),
                 None => None,
             };
@@ -728,9 +718,7 @@ impl<'a> Resolver<'a> {
         match schema_ror {
             // Inline primitive refs; preserve Ref for Object/Enum/Union so generators
             // can derive `XxxResource` / `XxxRequest` class names from the ref name.
-            Some(RawOrRef::Ref { ref_path }) => {
-                Ok(Some(self.resolve_ref_or_inline(&ref_path)?))
-            }
+            Some(RawOrRef::Ref { ref_path }) => Ok(Some(self.resolve_ref_or_inline(&ref_path)?)),
             Some(ror) => Ok(Some(self.resolve_schema_or_ref(&ror)?)),
             None => Ok(None),
         }

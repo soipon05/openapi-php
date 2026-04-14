@@ -6,8 +6,8 @@
 //! are re-exported here for convenience.
 
 pub use crate::php_utils::{
-    PHP_RESERVED, escape_reserved, sanitize_php_ident, sanitize_php_string_literal, sanitize_phpdoc,
-    to_camel_case, to_pascal_case,
+    PHP_RESERVED, escape_reserved, sanitize_php_ident, sanitize_php_string_literal,
+    sanitize_phpdoc, to_camel_case, to_pascal_case,
 };
 
 use crate::ir::{EnumBackingType, PhpPrimitive, ResolvedParam, ResolvedSchema, UnionSchema};

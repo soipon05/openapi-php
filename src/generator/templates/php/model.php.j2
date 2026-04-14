@@ -49,7 +49,17 @@ final class {{ name }}
 {% endfor %}
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+{% if phpstan_from_shape %}
+     * @param array{
+{% for entry in phpstan_from_shape %}
+     *     {{ entry }},
+{% endfor %}
+     * } $data
+{% else %}
+     * @param array<string, mixed> $data
+{% endif %}
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -59,7 +69,17 @@ final class {{ name }}
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+{% if phpstan_to_shape %}
+     * @return array{
+{% for entry in phpstan_to_shape %}
+     *     {{ entry }},
+{% endfor %}
+     * }
+{% else %}
+     * @return array<string, mixed>
+{% endif %}
+     */
     public function toArray(): array
     {
         return array_filter([

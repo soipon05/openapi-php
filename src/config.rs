@@ -205,6 +205,9 @@ impl PhpVersion {
 
     /// Returns `true` when the version supports `readonly class` (PHP 8.2+).
     pub fn supports_readonly_class(&self) -> bool {
-        matches!(self, PhpVersion::Php82 | PhpVersion::Php83 | PhpVersion::Php84)
+        matches!(
+            self,
+            PhpVersion::Php82 | PhpVersion::Php83 | PhpVersion::Php84
+        )
     }
 }

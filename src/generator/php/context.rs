@@ -29,6 +29,14 @@ pub struct ModelCtx {
     pub properties: Vec<PropertyCtx>,
     /// true → emit `readonly final class` (PHP 8.2+); false → per-property `readonly`
     pub use_readonly_class: bool,
+    /// PHPStan array-shape entries for the `fromArray(@param)` annotation.
+    /// Each entry is a string like `'id'?: string|null` or `'name': string`.
+    /// Empty when the model has no properties.
+    pub phpstan_from_shape: Vec<String>,
+    /// PHPStan array-shape entries for the `toArray(@return)` annotation.
+    /// array_filter removes null values, so nullable keys are optional (`?`) but their
+    /// value type is the non-null base type.
+    pub phpstan_to_shape: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -190,7 +198,7 @@ pub fn build_model_ctx(
         .map(|r| sanitize_php_ident(&r))
         .collect();
 
-    let properties = schema
+    let properties: Vec<PropertyCtx> = schema
         .properties
         .iter()
         .map(|(prop_name, prop)| {
@@ -288,6 +296,9 @@ pub fn build_model_ctx(
         })
         .collect();
 
+    let phpstan_from_shape = properties.iter().map(phpstan_from_entry).collect();
+    let phpstan_to_shape = properties.iter().map(phpstan_to_entry).collect();
+
     ModelCtx {
         name: sanitize_php_ident(name),
         namespace: namespace.to_string(),
@@ -295,6 +306,8 @@ pub fn build_model_ctx(
         use_imports,
         properties,
         use_readonly_class,
+        phpstan_from_shape,
+        phpstan_to_shape,
     }
 }
 
@@ -318,7 +331,11 @@ pub fn build_enum_ctx(name: &str, schema: &EnumSchema, namespace: &str) -> EnumC
                         .chars()
                         .filter(|c| c.is_ascii_digit() || *c == '-')
                         .collect();
-                    if safe.is_empty() { "0".to_string() } else { safe }
+                    if safe.is_empty() {
+                        "0".to_string()
+                    } else {
+                        safe
+                    }
                 }
             };
             VariantCtx {
@@ -434,8 +451,7 @@ pub fn build_exception_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Excepti
         let operation_pascal = to_pascal_case(&ep.operation_id);
         for er in &ep.error_responses {
             let suffix = status_code_suffix(er.status_code);
-            let class_name =
-                sanitize_php_ident(&format!("{operation_pascal}{suffix}"));
+            let class_name = sanitize_php_ident(&format!("{operation_pascal}{suffix}"));
 
             if seen.contains(&class_name) {
                 continue;
@@ -504,8 +520,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
         .endpoints
         .iter()
         .map(|ep| {
-            let fn_name =
-                sanitize_php_ident(&escape_reserved(&to_camel_case(&ep.operation_id)));
+            let fn_name = sanitize_php_ident(&escape_reserved(&to_camel_case(&ep.operation_id)));
             let method_str = ep.method.as_str().to_string();
 
             let mut params: Vec<String> = Vec::new();
@@ -649,12 +664,12 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
         })
         .collect();
 
-    let has_bearer_auth = spec.security_schemes.iter().any(|s| {
-        matches!(&s.scheme_type, SecuritySchemeType::Http { scheme } if scheme == "bearer")
-    });
-    let has_api_key_header_auth = spec.security_schemes.iter().any(|s| {
-        matches!(&s.scheme_type, SecuritySchemeType::ApiKey { in_, .. } if in_ == "header")
-    });
+    let has_bearer_auth = spec.security_schemes.iter().any(
+        |s| matches!(&s.scheme_type, SecuritySchemeType::Http { scheme } if scheme == "bearer"),
+    );
+    let has_api_key_header_auth = spec.security_schemes.iter().any(
+        |s| matches!(&s.scheme_type, SecuritySchemeType::ApiKey { in_, .. } if in_ == "header"),
+    );
 
     ClientCtx {
         namespace: namespace.to_string(),
@@ -668,4 +683,53 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
         has_bearer_auth,
         has_api_key_header_auth,
     }
+}
+
+// ─── PHPStan array-shape helpers ──────────────────────────────────────────────
+
+/// Map a PHP constructor type to its JSON/array-data equivalent for PHPStan shapes.
+///
+/// `\DateTimeImmutable` properties are carried as `string` in the raw array.
+/// Named DTO classes (`Foo`) appear as `array<string, mixed>` in the raw array.
+/// Nullable leading `?` is stripped — key optionality is expressed in the key suffix.
+fn phpstan_scalar_type(php_type: &str) -> String {
+    let base = php_type.trim_start_matches('?');
+    match base {
+        "\\DateTimeImmutable" => "string".to_string(),
+        "mixed" => "mixed".to_string(),
+        b if b.starts_with("array") => "array<string, mixed>".to_string(),
+        // Uppercase first char → PHP class name (DTO) → array on the wire
+        b if b.chars().next().is_some_and(|c| c.is_uppercase()) => {
+            "array<string, mixed>".to_string()
+        }
+        b => b.to_string(),
+    }
+}
+
+/// Build a single PHPStan shape entry for the `fromArray @param` annotation.
+///
+/// - Required non-nullable → `'key': type`  (key must exist, value is non-null)
+/// - Optional or nullable  → `'key'?: type|null` (key may be absent or value may be null)
+pub fn phpstan_from_entry(p: &PropertyCtx) -> String {
+    let key_required = p.required && !p.php_type.starts_with('?');
+    let key_opt = if key_required { "" } else { "?" };
+    let base_type = phpstan_scalar_type(&p.php_type);
+    let full_type = if p.php_type.starts_with('?') {
+        format!("{base_type}|null")
+    } else {
+        base_type
+    };
+    format!("'{}'{}: {}", p.name, key_opt, full_type)
+}
+
+/// Build a single PHPStan shape entry for the `toArray @return` annotation.
+///
+/// `array_filter` removes null values from the output, so:
+/// - Required non-nullable → `'key': type`  (always present, always non-null)
+/// - Nullable or optional  → `'key'?: type` (may be absent; if present it is non-null)
+pub fn phpstan_to_entry(p: &PropertyCtx) -> String {
+    let always_present = p.required && !p.php_type.starts_with('?');
+    let key_opt = if always_present { "" } else { "?" };
+    let base_type = phpstan_scalar_type(&p.php_type);
+    format!("'{}'{}: {}", p.name, key_opt, base_type)
 }

@@ -125,18 +125,14 @@ impl Args {
                         bail!("--watch is not supported with --inputs");
                     }
 
-                    let prefix = namespace_prefix
-                        .unwrap_or_else(|| "App\\Generated".to_string());
+                    let prefix = namespace_prefix.unwrap_or_else(|| "App\\Generated".to_string());
                     let output_base = output.unwrap_or_else(|| PathBuf::from("generated"));
 
-                    let cli_framework =
-                        framework.as_deref().map(Framework::parse).transpose()?;
+                    let cli_framework = framework.as_deref().map(Framework::parse).transpose()?;
                     let cli_php_version =
                         php_version.as_deref().map(PhpVersion::parse).transpose()?;
-                    let framework_val =
-                        cli_framework.unwrap_or_else(|| config.framework.clone());
-                    let php_ver =
-                        cli_php_version.unwrap_or_else(|| config.php_version.clone());
+                    let framework_val = cli_framework.unwrap_or_else(|| config.framework.clone());
+                    let php_ver = cli_php_version.unwrap_or_else(|| config.php_version.clone());
 
                     let mut paths = glob_expand(&glob_pattern)?;
                     paths.sort();

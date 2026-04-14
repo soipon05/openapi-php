@@ -45,11 +45,19 @@ fn discriminator_mapping_captured() {
 
     let spec = spec();
     let pet = spec.schemas.get("Pet").unwrap();
-    let ResolvedSchema::Union(u) = pet else { panic!() };
+    let ResolvedSchema::Union(u) = pet else {
+        panic!()
+    };
 
     assert_eq!(u.discriminator.as_deref(), Some("type"));
-    assert_eq!(u.discriminator_mapping.get("dog").map(|s| s.as_str()), Some("Dog"));
-    assert_eq!(u.discriminator_mapping.get("cat").map(|s| s.as_str()), Some("Cat"));
+    assert_eq!(
+        u.discriminator_mapping.get("dog").map(|s| s.as_str()),
+        Some("Dog")
+    );
+    assert_eq!(
+        u.discriminator_mapping.get("cat").map(|s| s.as_str()),
+        Some("Cat")
+    );
 }
 
 #[test]
@@ -58,10 +66,15 @@ fn no_mapping_union_has_empty_mapping() {
 
     let spec = spec();
     let pet = spec.schemas.get("PetNoMapping").unwrap();
-    let ResolvedSchema::Union(u) = pet else { panic!() };
+    let ResolvedSchema::Union(u) = pet else {
+        panic!()
+    };
 
     assert_eq!(u.discriminator.as_deref(), Some("type"));
-    assert!(u.discriminator_mapping.is_empty(), "PetNoMapping should have no mapping");
+    assert!(
+        u.discriminator_mapping.is_empty(),
+        "PetNoMapping should have no mapping"
+    );
 }
 
 #[test]
@@ -70,9 +83,14 @@ fn no_discriminator_union_has_none() {
 
     let spec = spec();
     let pet = spec.schemas.get("PetAny").unwrap();
-    let ResolvedSchema::Union(u) = pet else { panic!() };
+    let ResolvedSchema::Union(u) = pet else {
+        panic!()
+    };
 
-    assert!(u.discriminator.is_none(), "PetAny should have no discriminator");
+    assert!(
+        u.discriminator.is_none(),
+        "PetAny should have no discriminator"
+    );
 }
 
 // ─── PlainPhpBackend output ───────────────────────────────────────────────────
@@ -89,26 +107,49 @@ fn plain_generates_union_file_with_mapping() {
     let files = backend.run_dry(&ctx).unwrap();
 
     let pet_path = PathBuf::from("Models/Pet.php");
-    let content = files.get(&pet_path).expect("Models/Pet.php should be generated");
+    let content = files
+        .get(&pet_path)
+        .expect("Models/Pet.php should be generated");
 
     // final class container (8.2+ uses `final readonly class`)
     assert!(
         content.contains("final readonly class Pet") || content.contains("final class Pet"),
         "should be final class"
     );
-    assert!(content.contains("private function __construct"), "should have private __construct");
-    assert!(content.contains("Dog|Cat $value"), "should have union property type");
+    assert!(
+        content.contains("private function __construct"),
+        "should have private __construct"
+    );
+    assert!(
+        content.contains("Dog|Cat $value"),
+        "should have union property type"
+    );
 
     // fromArray match with mapping-derived keys
-    assert!(content.contains("'dog' => new self(Dog::fromArray($data))"), "mapping key 'dog'");
-    assert!(content.contains("'cat' => new self(Cat::fromArray($data))"), "mapping key 'cat'");
+    assert!(
+        content.contains("'dog' => new self(Dog::fromArray($data))"),
+        "mapping key 'dog'"
+    );
+    assert!(
+        content.contains("'cat' => new self(Cat::fromArray($data))"),
+        "mapping key 'cat'"
+    );
 
     // toArray delegates
-    assert!(content.contains("return $this->value->toArray()"), "toArray delegate");
+    assert!(
+        content.contains("return $this->value->toArray()"),
+        "toArray delegate"
+    );
 
     // use imports
-    assert!(content.contains("use App\\Test\\Models\\Dog;"), "Dog import");
-    assert!(content.contains("use App\\Test\\Models\\Cat;"), "Cat import");
+    assert!(
+        content.contains("use App\\Test\\Models\\Dog;"),
+        "Dog import"
+    );
+    assert!(
+        content.contains("use App\\Test\\Models\\Cat;"),
+        "Cat import"
+    );
 }
 
 #[test]
@@ -123,11 +164,19 @@ fn plain_generates_union_file_no_mapping_uses_schema_name() {
     let files = backend.run_dry(&ctx).unwrap();
 
     let path = PathBuf::from("Models/PetNoMapping.php");
-    let content = files.get(&path).expect("Models/PetNoMapping.php should be generated");
+    let content = files
+        .get(&path)
+        .expect("Models/PetNoMapping.php should be generated");
 
     // Without mapping, OAS spec says match key = schema name as-is
-    assert!(content.contains("'Dog' => new self(Dog::fromArray($data))"), "schema-name key 'Dog'");
-    assert!(content.contains("'Cat' => new self(Cat::fromArray($data))"), "schema-name key 'Cat'");
+    assert!(
+        content.contains("'Dog' => new self(Dog::fromArray($data))"),
+        "schema-name key 'Dog'"
+    );
+    assert!(
+        content.contains("'Cat' => new self(Cat::fromArray($data))"),
+        "schema-name key 'Cat'"
+    );
 }
 
 #[test]

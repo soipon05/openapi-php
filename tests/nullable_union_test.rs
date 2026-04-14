@@ -22,7 +22,9 @@ fn nullable_ref_union_resolves_as_union() {
 
     let spec = spec();
     let item = spec.schemas.get("Item").unwrap();
-    let ResolvedSchema::Object(obj) = item else { panic!("Item should be Object") };
+    let ResolvedSchema::Object(obj) = item else {
+        panic!("Item should be Object")
+    };
 
     let category_prop = &obj.properties["category"];
     assert!(
@@ -45,7 +47,8 @@ fn nullable_ref_union_property_gets_question_mark_type() {
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
 
-    let content = files.get(&PathBuf::from("Models/Item.php"))
+    let content = files
+        .get(&PathBuf::from("Models/Item.php"))
         .expect("Models/Item.php should be generated");
 
     // Property type should be ?Category, not mixed
@@ -74,7 +77,8 @@ fn nullable_ref_union_from_array_uses_isset() {
 
     // fromArray should use isset pattern for nullable ref
     assert!(
-        content.contains("isset($data['category']) ? Category::fromArray($data['category']) : null"),
+        content
+            .contains("isset($data['category']) ? Category::fromArray($data['category']) : null"),
         "fromArray should use isset pattern:\n{content}"
     );
 }

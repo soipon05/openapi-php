@@ -48,7 +48,11 @@ pub fn run(
     std::fs::create_dir_all(output)?;
 
     let backend = make_backend(&framework, templates_dir)?;
-    let ctx = CodegenContext { spec, namespace, php_version };
+    let ctx = CodegenContext {
+        spec,
+        namespace,
+        php_version,
+    };
     let files = backend.render(&ctx)?;
 
     for file in &files {
@@ -77,7 +81,11 @@ pub fn run_dry_filtered(
     php_version: &PhpVersion,
 ) -> Result<BTreeMap<PathBuf, String>> {
     let backend = make_backend(framework, templates_dir)?;
-    let ctx = CodegenContext { spec, namespace, php_version };
+    let ctx = CodegenContext {
+        spec,
+        namespace,
+        php_version,
+    };
     let files = backend.render(&ctx)?;
     Ok(files
         .into_iter()
@@ -96,7 +104,14 @@ pub fn run_dry_print(
     templates_dir: Option<&Path>,
     php_version: &PhpVersion,
 ) -> Result<()> {
-    let files = run_dry_filtered(spec, namespace, &mode, &framework, templates_dir, php_version)?;
+    let files = run_dry_filtered(
+        spec,
+        namespace,
+        &mode,
+        &framework,
+        templates_dir,
+        php_version,
+    )?;
     let count = files.len();
     for (path, content) in &files {
         println!("=== {} ===", path.display());
@@ -118,7 +133,14 @@ pub fn run_diff(
     templates_dir: Option<&Path>,
     php_version: &PhpVersion,
 ) -> Result<bool> {
-    let files = run_dry_filtered(spec, namespace, &mode, &framework, templates_dir, php_version)?;
+    let files = run_dry_filtered(
+        spec,
+        namespace,
+        &mode,
+        &framework,
+        templates_dir,
+        php_version,
+    )?;
     let total = files.len();
     let mut changed = 0usize;
 

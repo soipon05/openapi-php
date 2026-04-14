@@ -252,8 +252,14 @@ fn php82_uses_readonly_class() {
     let files = backend.run_dry(&ctx).unwrap();
     let content = files[&PathBuf::from("Models/Item.php")].as_str();
 
-    assert!(content.contains("readonly final class Item"), "8.2 should use readonly class");
-    assert!(!content.contains("public readonly"), "8.2 should not have per-property readonly");
+    assert!(
+        content.contains("readonly final class Item"),
+        "8.2 should use readonly class"
+    );
+    assert!(
+        !content.contains("public readonly"),
+        "8.2 should not have per-property readonly"
+    );
 }
 
 #[test]
@@ -268,9 +274,18 @@ fn php81_uses_per_property_readonly() {
     let files = backend.run_dry(&ctx).unwrap();
     let content = files[&PathBuf::from("Models/Item.php")].as_str();
 
-    assert!(content.contains("final class Item"), "8.1 should use plain final class");
-    assert!(!content.contains("readonly final class"), "8.1 should not use readonly class");
-    assert!(content.contains("public readonly"), "8.1 should have per-property readonly");
+    assert!(
+        content.contains("final class Item"),
+        "8.1 should use plain final class"
+    );
+    assert!(
+        !content.contains("readonly final class"),
+        "8.1 should not use readonly class"
+    );
+    assert!(
+        content.contains("public readonly"),
+        "8.1 should have per-property readonly"
+    );
 }
 
 // ─── Auth injection tests ─────────────────────────────────────────────────────
@@ -288,7 +303,9 @@ fn parse_bearer_auth_scheme() {
 fn parse_api_key_auth_scheme() {
     let spec = parser::load_and_resolve(&fixture("bearer_auth.yaml")).unwrap();
     assert!(
-        spec.security_schemes.iter().any(|s| s.name == "ApiKeyHeader"),
+        spec.security_schemes
+            .iter()
+            .any(|s| s.name == "ApiKeyHeader"),
         "Expected ApiKeyHeader scheme in resolved spec"
     );
 }
@@ -309,8 +326,14 @@ fn client_ctx_has_bearer_auth_flag() {
     let spec = parser::load_and_resolve(&fixture("bearer_auth.yaml")).unwrap();
     let ctx = build_client_ctx(&spec, "App\\Generated");
     assert!(ctx.has_bearer_auth, "has_bearer_auth should be true");
-    assert!(ctx.has_api_key_header_auth, "has_api_key_header_auth should be true");
-    assert!(!ctx.auth_schemes.is_empty(), "auth_schemes should not be empty");
+    assert!(
+        ctx.has_api_key_header_auth,
+        "has_api_key_header_auth should be true"
+    );
+    assert!(
+        !ctx.auth_schemes.is_empty(),
+        "auth_schemes should not be empty"
+    );
 }
 
 #[test]
@@ -319,7 +342,10 @@ fn client_ctx_no_auth_on_simple_spec() {
 
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = build_client_ctx(&spec, "App\\Generated");
-    assert!(!ctx.has_bearer_auth, "has_bearer_auth should be false for simple.yaml");
+    assert!(
+        !ctx.has_bearer_auth,
+        "has_bearer_auth should be false for simple.yaml"
+    );
     assert!(!ctx.has_api_key_header_auth);
     assert!(ctx.auth_schemes.is_empty());
 }
@@ -527,7 +553,9 @@ fn injection_spec_fn_name_is_valid_php_identifier() {
     for ep in &ctx.endpoints {
         // fn_name must only contain [A-Za-z0-9_]
         assert!(
-            ep.fn_name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
+            ep.fn_name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_'),
             "fn_name {:?} contains non-identifier chars",
             ep.fn_name
         );
@@ -575,5 +603,117 @@ fn injection_spec_base_url_has_no_single_quote() {
         !ctx.base_url.contains('\'') && !ctx.base_url.contains('\n'),
         "base_url {:?} contains unsafe chars for PHP string literal",
         ctx.base_url
+    );
+}
+
+// ─── PHPStan array shape annotation tests ─────────────────────────────────────
+
+/// `fromArray` must emit a precise PHPStan array shape (`@param array{...}`)
+/// instead of the generic `array<string, mixed>`.
+#[test]
+fn phpstan_from_array_emits_array_shape() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    // Must use precise shape, not generic fallback
+    assert!(
+        item.contains("@param array{"),
+        "Expected PHPStan array shape in fromArray @param, got:\n{item}"
+    );
+    assert!(
+        !item.contains("@param array<string, mixed>"),
+        "Generic @param array<string, mixed> must be replaced by shape:\n{item}"
+    );
+}
+
+/// `toArray` must emit a precise PHPStan array shape (`@return array{...}`).
+#[test]
+fn phpstan_to_array_emits_array_shape() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    assert!(
+        item.contains("@return array{"),
+        "Expected PHPStan array shape in toArray @return, got:\n{item}"
+    );
+    assert!(
+        !item.contains("@return array<string, mixed>"),
+        "Generic @return array<string, mixed> must be replaced by shape:\n{item}"
+    );
+}
+
+/// Required properties must appear without `?` and with their base type.
+/// Optional / nullable properties must use `'key'?:` in fromArray shape.
+#[test]
+fn phpstan_from_shape_required_vs_optional() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    // `id` and `name` are required — must appear without `?`
+    assert!(
+        item.contains("'id': int"),
+        "Required int property must appear as 'id': int in shape:\n{item}"
+    );
+    assert!(
+        item.contains("'name': string"),
+        "Required string property must appear as 'name': string in shape:\n{item}"
+    );
+
+    // `description` is nullable — must appear with `?`
+    assert!(
+        item.contains("'description'?:"),
+        "Nullable property must use optional key 'description'?: in shape:\n{item}"
+    );
+}
+
+/// `toArray` shape must not include `|null` (array_filter removes null values,
+/// so the emitted values are always non-null).
+#[test]
+fn phpstan_to_shape_values_are_non_null() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    // Extract only the toArray return shape block to avoid cross-contamination
+    // with fromArray (which legitimately has |null).
+    let to_array_start = item.find("public function toArray").unwrap_or(0);
+    let to_array_block = &item[..to_array_start]; // @return appears before the function
+    // Find the last @return array{ before toArray
+    let return_idx = to_array_block.rfind("@return array{").unwrap_or(0);
+    let shape_end = item[return_idx..]
+        .find('}')
+        .unwrap_or(item.len() - return_idx);
+    let shape = &item[return_idx..return_idx + shape_end];
+
+    assert!(
+        !shape.contains("|null"),
+        "toArray shape must not contain |null (array_filter guarantees non-null):\n{shape}"
     );
 }
