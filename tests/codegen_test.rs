@@ -792,3 +792,58 @@ fn phpstan_to_shape_values_are_non_null() {
         "toArray shape must not contain |null (array_filter guarantees non-null):\n{shape}"
     );
 }
+
+// ─── PHPStan list<T> precision tests ──────────────────────────────────────────
+
+/// Array properties backed by a DTO ref must emit `list<array<string, mixed>>`,
+/// not the vague `array<string, mixed>`.
+#[test]
+fn phpstan_shape_dto_array_emits_list_of_array() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let pet = files[&PathBuf::from("Models/Pet.php")].as_str();
+
+    // `tags` is array<Tag> — shape should be list<array<string, mixed>>
+    assert!(
+        pet.contains("list<array<string, mixed>>"),
+        "DTO array property must emit list<array<string, mixed>> in shape:\n{pet}"
+    );
+    // Must NOT fall back to bare array<string, mixed>
+    assert!(
+        !pet.contains("'tags'?: array<string, mixed>")
+            && !pet.contains("'tags': array<string, mixed>"),
+        "tags property must not appear as bare array<string, mixed>:\n{pet}"
+    );
+}
+
+/// Array properties backed by a primitive type must emit `list<string>`, `list<int>` etc.
+#[test]
+fn phpstan_shape_primitive_array_emits_list_of_primitive() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let pet = files[&PathBuf::from("Models/Pet.php")].as_str();
+
+    // `photoUrls` is array<string> — shape should be list<string>
+    assert!(
+        pet.contains("list<string>"),
+        "String array property must emit list<string> in shape:\n{pet}"
+    );
+    // Must NOT fall back to bare array<string, mixed>
+    assert!(
+        !pet.contains("'photoUrls'?: array<string, mixed>")
+            && !pet.contains("'photoUrls': array<string, mixed>"),
+        "photoUrls property must not appear as bare array<string, mixed>:\n{pet}"
+    );
+}
