@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace {{ namespace }}\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
-use Illuminate\Routing\Controller;
 {% for stmt in use_statements %}
 use {{ stmt }};
 {% endfor %}
-class {{ name }}Controller extends Controller
+class {{ name }}Controller
 {
 {% for method in methods %}
 {% if not loop.first %}

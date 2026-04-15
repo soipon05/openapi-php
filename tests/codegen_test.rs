@@ -1045,3 +1045,133 @@ fn from_array_no_throws_when_no_datetime_prop() {
         "fromArray must NOT declare @throws when model has no DateTimeImmutable:\n{req}"
     );
 }
+
+// ─── H2: validate_namespace rejects trailing backslash ────────────────────────
+
+#[test]
+fn validate_namespace_rejects_trailing_backslash() {
+    use openapi_php::php_utils::validate_namespace;
+
+    assert!(
+        validate_namespace("App\\").is_err(),
+        "Trailing backslash must be rejected"
+    );
+    assert!(
+        validate_namespace("App\\Generated\\").is_err(),
+        "Trailing backslash in deep namespace must be rejected"
+    );
+    assert!(
+        validate_namespace("App\\Generated").is_ok(),
+        "Valid namespace must be accepted"
+    );
+}
+
+// ─── M1: @throws type respects php_version ────────────────────────────────────
+
+#[test]
+fn from_array_throws_date_malformed_on_php83() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php83,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    assert!(
+        item.contains("@throws \\DateMalformedStringException"),
+        "PHP 8.3+ must emit @throws \\DateMalformedStringException:\n{item}"
+    );
+}
+
+#[test]
+fn from_array_throws_exception_on_php82() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    assert!(
+        item.contains("@throws \\Exception"),
+        "PHP 8.1/8.2 must emit @throws \\Exception:\n{item}"
+    );
+    assert!(
+        !item.contains("DateMalformedStringException"),
+        "PHP 8.2 must not emit DateMalformedStringException:\n{item}"
+    );
+}
+
+// ─── M2/M3: @return self and PHPDoc order ────────────────────────────────────
+
+#[test]
+fn from_array_has_return_self_annotation() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    assert!(
+        item.contains("* @return self"),
+        "fromArray must have @return self annotation:\n{item}"
+    );
+    // @return must appear before @throws
+    let return_pos = item.find("* @return self").unwrap();
+    let throws_pos = item.find("* @throws").unwrap();
+    assert!(
+        return_pos < throws_pos,
+        "@return self must appear before @throws in PHPDoc:\n{item}"
+    );
+}
+
+// ─── M4: all-required vs optional query params ────────────────────────────────
+
+/// Petstore's listPets has optional query params → must use array_filter.
+#[test]
+fn optional_query_params_use_array_filter() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
+
+    assert!(
+        client.contains("array_filter(["),
+        "Optional query params must use array_filter:\n{client}"
+    );
+}
+
+/// When all query params are required, array_filter is unnecessary overhead.
+#[test]
+fn all_required_query_params_skip_array_filter() {
+    use openapi_php::generator::php::context::build_client_ctx;
+
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = build_client_ctx(&spec, "App\\Test");
+
+    // listPets has optional params → has_optional_query_params = true
+    let list_pets = ctx.endpoints.iter().find(|ep| ep.fn_name == "listPets").unwrap();
+    assert!(
+        list_pets.has_optional_query_params,
+        "listPets has optional query params, flag must be true"
+    );
+    assert!(
+        list_pets.has_query_params,
+        "listPets has query params"
+    );
+}

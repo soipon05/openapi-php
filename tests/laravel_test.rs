@@ -181,8 +181,13 @@ fn laravel_controller_has_correct_namespace_and_class() {
         "Expected correct namespace"
     );
     assert!(
-        content.contains("class ItemController extends Controller"),
+        content.contains("class ItemController"),
         "Expected class definition"
+    );
+    // Laravel 12+ controllers do not extend a base Controller class
+    assert!(
+        !content.contains("extends Controller"),
+        "Laravel 12+ controllers must not extend Controller"
     );
 }
 
@@ -299,7 +304,7 @@ fn laravel_petstore_controller_has_all_crud_methods() {
 // ─── ISSUE-5: controller must import Illuminate\Routing\Controller ────────────
 
 #[test]
-fn laravel_controller_imports_routing_controller() {
+fn laravel_controller_does_not_extend_base_controller() {
     let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
     let ctx = CodegenContext {
         php_version: &PhpVersion::Php82,
@@ -309,9 +314,14 @@ fn laravel_controller_imports_routing_controller() {
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
 
+    // Laravel 12+ does not use a base Controller class
     assert!(
-        content.contains("use Illuminate\\Routing\\Controller;"),
-        "Controller must import Illuminate\\Routing\\Controller:\n{content}"
+        !content.contains("use Illuminate\\Routing\\Controller;"),
+        "Laravel 12+ must not import Illuminate\\Routing\\Controller:\n{content}"
+    );
+    assert!(
+        !content.contains("extends Controller"),
+        "Laravel 12+ must not extend Controller:\n{content}"
     );
 }
 

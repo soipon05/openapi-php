@@ -4,9 +4,10 @@
 //! Builder functions (`build_model_ctx`, `build_enum_ctx`, `build_client_ctx`)
 //! transform IR types into these template-ready structures.
 
+use crate::config::PhpVersion;
 use crate::ir::{
-    EnumBackingType, EnumSchema, ObjectSchema, ResolvedSchema, ResolvedSpec, SecuritySchemeType,
-    UnionSchema,
+    EnumBackingType, EnumSchema, ObjectSchema, PhpPrimitive, ResolvedSchema, ResolvedSpec,
+    SecuritySchemeType, UnionSchema,
 };
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -37,10 +38,12 @@ pub struct ModelCtx {
     /// array_filter removes null values, so nullable keys are optional (`?`) but their
     /// value type is the non-null base type.
     pub phpstan_to_shape: Vec<String>,
-    /// true when at least one property has type `\DateTimeImmutable`.
-    /// Used to emit `@throws \Exception` on `fromArray` (constructor can throw on
-    /// invalid date strings).
+    /// true when at least one property (or array of properties) uses `\DateTimeImmutable`.
+    /// Used to emit `@throws` on `fromArray` (constructor can throw on invalid date strings).
     pub has_datetime_prop: bool,
+    /// The exception class name for `@throws` on `fromArray`.
+    /// `\DateMalformedStringException` for PHP 8.3+, `\Exception` for older versions.
+    pub datetime_throws: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -115,6 +118,9 @@ pub struct EndpointCtx {
     pub deprecated: bool,
     pub query_params: Vec<QueryParamCtx>,
     pub has_query_params: bool,
+    /// true when at least one query param is optional (not required).
+    /// When false, all params are required and array_filter is unnecessary.
+    pub has_optional_query_params: bool,
     pub header_params: Vec<QueryParamCtx>,
     pub has_header_params: bool,
     pub path_expr: String,
@@ -201,6 +207,7 @@ pub fn build_model_ctx(
     namespace: &str,
     schemas: &IndexMap<String, ResolvedSchema>,
     use_readonly_class: bool,
+    php_version: &PhpVersion,
 ) -> ModelCtx {
     let mut refs = BTreeSet::new();
     for (_, prop) in &schema.properties {
@@ -329,9 +336,11 @@ pub fn build_model_ctx(
 
     let phpstan_from_shape = properties.iter().map(phpstan_from_entry).collect();
     let phpstan_to_shape = properties.iter().map(phpstan_to_entry).collect();
-    let has_datetime_prop = properties
-        .iter()
-        .any(|p| p.php_type.contains("DateTimeImmutable"));
+    let has_datetime_prop = schema.properties.values().any(|prop| has_datetime_schema(&prop.schema));
+    let datetime_throws = match php_version {
+        PhpVersion::Php83 | PhpVersion::Php84 => "\\DateMalformedStringException".to_string(),
+        _ => "\\Exception".to_string(),
+    };
 
     ModelCtx {
         name: sanitize_php_ident(name),
@@ -343,6 +352,7 @@ pub fn build_model_ctx(
         phpstan_from_shape,
         phpstan_to_shape,
         has_datetime_prop,
+        datetime_throws,
     }
 }
 
@@ -658,6 +668,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 summary: ep.summary.as_deref().map(sanitize_phpdoc),
                 deprecated: ep.deprecated,
                 has_query_params: !ep.query_params.is_empty(),
+                has_optional_query_params: ep.query_params.iter().any(|p| !p.required),
                 query_params,
                 has_header_params: !ep.header_params.is_empty(),
                 header_params,
@@ -733,6 +744,16 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
 }
 
 // ─── PHPStan array-shape helpers ──────────────────────────────────────────────
+
+/// Returns true if the schema is (or contains) a date-time primitive.
+/// Used to determine whether `fromArray` can throw on date parsing.
+fn has_datetime_schema(schema: &ResolvedSchema) -> bool {
+    match schema {
+        ResolvedSchema::Primitive(p) => p.php_type == PhpPrimitive::DateTime,
+        ResolvedSchema::Array(arr) => has_datetime_schema(&arr.items),
+        _ => false,
+    }
+}
 
 /// Map a PHP constructor type to its JSON/array-data equivalent for PHPStan shapes.
 ///

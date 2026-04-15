@@ -54,12 +54,20 @@ final class ApiClient
     public function {{ ep.fn_name }}({{ ep.params_str }}): {{ ep.return_type }}
     {
 {% if ep.has_query_params %}
+{% if ep.has_optional_query_params %}
         $queryParams = array_filter([
 {% for qp in ep.query_params %}
             '{{ qp.name }}' => ${{ qp.php_name }},
 {% endfor %}
         ], fn($v) => $v !== null);
         $uri = $this->baseUrl . {{ ep.path_expr }} . ($queryParams !== [] ? '?' . http_build_query($queryParams) : '');
+{% else %}
+        $uri = $this->baseUrl . {{ ep.path_expr }} . '?' . http_build_query([
+{% for qp in ep.query_params %}
+            '{{ qp.name }}' => ${{ qp.php_name }},
+{% endfor %}
+        ]);
+{% endif %}
         $request = $this->requestFactory->createRequest('{{ ep.method_str }}', $uri);
 {% else %}
         $request = $this->requestFactory

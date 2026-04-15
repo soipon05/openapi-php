@@ -125,6 +125,9 @@ pub fn validate_namespace(ns: &str) -> anyhow::Result<()> {
     if ns.is_empty() {
         anyhow::bail!("Namespace must not be empty");
     }
+    if ns.ends_with('\\') {
+        anyhow::bail!("Namespace must not end with a backslash: {:?}", ns);
+    }
     let invalid: String = ns
         .chars()
         .filter(|&c| !c.is_ascii_alphanumeric() && c != '_' && c != '\\')

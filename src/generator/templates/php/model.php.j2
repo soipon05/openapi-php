@@ -59,8 +59,9 @@ final class {{ name }}
 {% else %}
      * @param array<string, mixed> $data
 {% endif %}
+     * @return self
 {% if has_datetime_prop %}
-     * @throws \Exception On invalid date-time string
+     * @throws {{ datetime_throws }} On invalid date-time string
 {% endif %}
      */
     public static function fromArray(array $data): self

@@ -166,6 +166,7 @@ impl CodegenBackend for LaravelPhpBackend {
                         ctx.namespace,
                         &ctx.spec.schemas,
                         ctx.php_version.supports_readonly_class(),
+                        ctx.php_version,
                     );
                     let content = self
                         .env
