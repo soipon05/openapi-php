@@ -237,7 +237,7 @@ impl CodegenBackend for LaravelPhpBackend {
         }
 
         // Routes stub
-        let routes_ctx = build_routes_ctx(ctx.spec);
+        let routes_ctx = build_routes_ctx(ctx.spec, ctx.namespace);
         let content = self
             .env
             .get_template("routes")?
@@ -418,7 +418,7 @@ fn resource_field_expr(
     }
 }
 
-fn build_routes_ctx(spec: &ResolvedSpec) -> RoutesCtx {
+fn build_routes_ctx(spec: &ResolvedSpec, namespace: &str) -> RoutesCtx {
     let routes = spec
         .endpoints
         .iter()
@@ -434,7 +434,7 @@ fn build_routes_ctx(spec: &ResolvedSpec) -> RoutesCtx {
                     .to_string()
             });
             let controller_base = to_pascal_case(&singularize(&tag));
-            let controller = format!("App\\Http\\Controllers\\{controller_base}Controller");
+            let controller = format!("{namespace}\\Http\\Controllers\\{controller_base}Controller");
 
             let action = derive_action(&ep.method, &ep.path_params);
             let comment = format!(

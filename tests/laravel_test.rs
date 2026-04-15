@@ -295,3 +295,45 @@ fn laravel_petstore_controller_has_all_crud_methods() {
     );
     assert!(content.contains("public function destroy(int $petId): JsonResponse"));
 }
+
+// ─── ISSUE-5: controller must import Illuminate\Routing\Controller ────────────
+
+#[test]
+fn laravel_controller_imports_routing_controller() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Generated",
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
+
+    assert!(
+        content.contains("use Illuminate\\Routing\\Controller;"),
+        "Controller must import Illuminate\\Routing\\Controller:\n{content}"
+    );
+}
+
+// ─── ISSUE-6: routes.php must use the provided namespace, not hardcoded App ──
+
+#[test]
+fn laravel_routes_use_provided_namespace() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "MyCompany\\Api",
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let content = &files[&PathBuf::from("routes/api.php")];
+
+    assert!(
+        content.contains("MyCompany\\Api\\Http\\Controllers"),
+        "routes/api.php must use the provided namespace, not hardcoded App:\n{content}"
+    );
+    assert!(
+        !content.contains("App\\Http\\Controllers"),
+        "routes/api.php must not hardcode App\\Http\\Controllers:\n{content}"
+    );
+}
