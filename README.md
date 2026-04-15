@@ -25,6 +25,8 @@ openapi-php generate --input openapi.yaml --framework laravel
   - [OpenAPI 3.1 Nullable Types](#openapi-31-nullable-types)
   - [Discriminated Union Types](#discriminated-union-types)
   - [PHP Version and `readonly`](#php-version-and-readonly)
+  - [ApiException Hierarchy](#apiexception-hierarchy)
+  - [Security Annotations](#security-annotations)
 - [Configuration file](#configuration-file)
 - [CLI Reference](#cli-reference)
 - [Architecture](#architecture)
@@ -47,7 +49,10 @@ openapi-php generate --input openapi.yaml --framework laravel
 | PHPStan type aliases | DTOs carry `@phpstan-type PetData array{…}` — compatible with PHPStan strict mode |
 | Enum labels | `x-enum-descriptions` vendor extension generates a `label(): string` method on `BackedEnum` |
 | Deprecated props | OpenAPI `deprecated: true` properties are annotated with `#[\Deprecated]` |
-| FormRequest rules | `minLength`/`maxLength`/`pattern`/`minimum`/`maximum` constraints are derived as Laravel validation rules |
+| FormRequest rules | `minLength`/`maxLength`/`pattern`/`minimum`/`maximum` constraints and enum `in:` rules are derived as Laravel validation rules |
+| Exception hierarchy | `ApiException` base class + per-endpoint typed exceptions (e.g. `GetPetNotFoundException`) — catch by base or by specific type |
+| Safe deserialization | Required fields in `fromArray()` throw `\UnexpectedValueException` on missing keys instead of silently producing a PHP notice |
+| Security annotations | OpenAPI `security` field → `@security` PHPDoc on client methods that require authentication |
 | Diff mode | `--diff` exits 1 when generated output diverges from disk — useful for CI |
 | Watch mode | `--watch` re-runs generation whenever the spec file changes |
 | Template overrides | Drop a Jinja2 template into `--templates` to customise any file |
@@ -309,6 +314,66 @@ Set the version in `openapi-php.toml` to avoid repeating the flag:
 [generator]
 php_version = "8.2"
 ```
+
+---
+
+### ApiException Hierarchy
+
+Every generated client comes with a shared `Exceptions/ApiException.php` base class.
+Each endpoint-specific exception extends it, so you can catch narrowly or broadly:
+
+```php
+// Catch a specific HTTP error
+try {
+    $pet = $client->getPetById(42);
+} catch (GetPetByIdNotFoundException $e) {
+    // 404 — $e->getError() returns the typed Error DTO
+}
+
+// Catch any API error from this client
+try {
+    $pet = $client->getPetById(42);
+} catch (ApiException $e) {
+    // Any 4xx / 5xx from this SDK
+    echo $e->getCode();   // HTTP status code
+    echo $e->getMessage(); // "HTTP 404: ..."
+}
+```
+
+The base class is `class ApiException extends \RuntimeException` — it is not `final` so that
+subclasses can extend it. Required-field validation uses `\UnexpectedValueException` (a
+`\RuntimeException` subclass) so it does not appear as an `ApiException`.
+
+---
+
+### Security Annotations
+
+When an OpenAPI operation declares a `security` requirement, the generated client method
+carries a `@security` PHPDoc comment:
+
+```yaml
+paths:
+  /pets:
+    get:
+      security:
+        - BearerAuth: []
+      operationId: listPets
+```
+
+Generated PHP:
+
+```php
+/**
+ * @security This endpoint requires authentication.
+ *
+ * @return list<Pet>
+ * @throws \Psr\Http\Client\ClientExceptionInterface
+ */
+public function listPets(): array
+```
+
+The annotation is informational — authentication itself is injected via PSR-18 middleware
+(see [Auth-free PSR-18 Client](#auth-free-psr-18-client)).
 
 ---
 

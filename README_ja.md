@@ -25,6 +25,8 @@ openapi-php generate --input openapi.yaml --framework laravel
   - [OpenAPI 3.1 nullable 型](#openapi-31-nullable-型)
   - [判別共用体型（Discriminated Union）](#判別共用体型discriminated-union)
   - [PHP バージョンと readonly](#php-バージョンと-readonly)
+  - [ApiException 階層](#apiexception-階層)
+  - [セキュリティアノテーション](#セキュリティアノテーション)
 - [設定ファイル](#設定ファイル)
 - [CLI リファレンス](#cli-リファレンス)
 - [アーキテクチャ](#アーキテクチャ)
@@ -47,7 +49,10 @@ openapi-php generate --input openapi.yaml --framework laravel
 | PHPStan 型エイリアス | DTO に `@phpstan-type PetData array{…}` を自動生成 — PHPStan strict モード対応 |
 | Enum ラベル | `x-enum-descriptions` ベンダー拡張から `label(): string` メソッドを生成 |
 | 非推奨プロパティ | OpenAPI `deprecated: true` のプロパティに `#[\Deprecated]` 属性を付与 |
-| FormRequest ルール | `minLength`/`maxLength`/`pattern`/`minimum`/`maximum` から Laravel バリデーションルールを自動導出 |
+| FormRequest ルール | `minLength`/`maxLength`/`pattern`/`minimum`/`maximum` および enum の `in:` ルールを Laravel バリデーションルールとして自動導出 |
+| 例外クラス階層 | `ApiException` 基底クラス＋エンドポイントごとの型付き例外（例: `GetPetNotFoundException`）— 基底または具体例外でキャッチ可能 |
+| 安全なデシリアライズ | `fromArray()` の必須フィールドが欠落した場合、サイレントな PHP notice の代わりに `\UnexpectedValueException` をスロー |
+| セキュリティアノテーション | OpenAPI の `security` フィールド → 認証が必要なクライアントメソッドに `@security` PHPDoc コメントを付与 |
 | 差分モード | `--diff` で生成物とディスクの差異があると終了コード 1（CI ゲートに活用） |
 | ウォッチモード | `--watch` でスペック変更を検知して自動再生成 |
 | テンプレート上書き | `--templates` に Jinja2 テンプレートを置くだけでカスタマイズ |
@@ -302,6 +307,63 @@ readonly final class Pet
 [generator]
 php_version = "8.2"
 ```
+
+---
+
+### ApiException 階層
+
+生成されるすべてのクライアントに `Exceptions/ApiException.php` 基底クラスが追加されます。
+各エンドポイント固有の例外がこれを継承するため、狭くキャッチすることも、まとめてキャッチすることもできます:
+
+```php
+// 特定の HTTP エラーをキャッチ
+try {
+    $pet = $client->getPetById(42);
+} catch (GetPetByIdNotFoundException $e) {
+    // 404 — $e->getError() で型付きエラー DTO を取得
+}
+
+// このクライアントの API エラーをまとめてキャッチ
+try {
+    $pet = $client->getPetById(42);
+} catch (ApiException $e) {
+    // 4xx / 5xx はすべてここで捕捉
+    echo $e->getCode();    // HTTP ステータスコード
+    echo $e->getMessage(); // "HTTP 404: ..."
+}
+```
+
+基底クラスは `class ApiException extends \RuntimeException`（`final` なし）です。
+必須フィールド欠落時にスローされる `\UnexpectedValueException` は `\RuntimeException` のサブクラスですが `ApiException` の外側にあるため、誤ってまとめてキャッチされることはありません。
+
+---
+
+### セキュリティアノテーション
+
+OpenAPI オペレーションに `security` 要件が宣言されている場合、生成されるクライアントメソッドに `@security` PHPDoc コメントが付与されます:
+
+```yaml
+paths:
+  /pets:
+    get:
+      security:
+        - BearerAuth: []
+      operationId: listPets
+```
+
+生成される PHP:
+
+```php
+/**
+ * @security This endpoint requires authentication.
+ *
+ * @return list<Pet>
+ * @throws \Psr\Http\Client\ClientExceptionInterface
+ */
+public function listPets(): array
+```
+
+このアノテーションは情報提供のみです。認証自体は PSR-18 ミドルウェアで注入してください（[認証なし PSR-18 クライアント](#認証なし-psr-18-クライアント) を参照）。
 
 ---
 
