@@ -27,9 +27,6 @@ final class ApiClient
 {% if needs_stream_factory %}
         private readonly StreamFactoryInterface $streamFactory,
 {% endif %}
-{% for scheme in auth_schemes %}
-        {{ scheme.constructor_param }},
-{% endfor %}
         private readonly string $baseUrl = self::BASE_URL,
     ) {}
 {% for ep in endpoints %}
@@ -79,11 +76,6 @@ final class ApiClient
         $request = $this->requestFactory
             ->createRequest('{{ ep.method_str }}', $this->baseUrl . {{ ep.path_expr }});
 {% endif %}
-{% for scheme in auth_schemes %}
-        if ($this->{{ scheme.prop_name }} !== null) {
-            $request = $request->withHeader('{{ scheme.header_name }}', '{{ scheme.header_prefix }}' . $this->{{ scheme.prop_name }});
-        }
-{% endfor %}
 {% if ep.has_header_params %}
 {% for hp in ep.header_params %}
 {% if hp.required %}
