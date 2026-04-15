@@ -101,7 +101,6 @@ pub struct VariantCtx {
     pub label: Option<String>,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct ClientCtx {
     pub namespace: String,
@@ -349,7 +348,10 @@ pub fn build_model_ctx(
 
     let phpstan_from_shape: Vec<String> = properties.iter().map(phpstan_from_entry).collect();
     let phpstan_to_shape: Vec<String> = properties.iter().map(phpstan_to_entry).collect();
-    let has_datetime_prop = schema.properties.values().any(|prop| has_datetime_schema(&prop.schema));
+    let has_datetime_prop = schema
+        .properties
+        .values()
+        .any(|prop| has_datetime_schema(&prop.schema));
     let datetime_throws = match php_version {
         PhpVersion::Php83 | PhpVersion::Php84 => "\\DateMalformedStringException".to_string(),
         _ => "\\Exception".to_string(),

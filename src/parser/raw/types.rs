@@ -142,10 +142,13 @@ pub struct Components {
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Schema {
+    /// `type` field — a single string (OAS 3.0) or an array of strings (OAS 3.1).
     #[serde(rename = "type")]
-    pub schema_type: Option<SchemaType>,
+    pub schema_type: Option<SchemaTypeOrTypes>,
     pub format: Option<String>,
     pub description: Option<String>,
+    /// OAS 3.0 `nullable: true`. Retained for backward compatibility; use
+    /// `SchemaTypeOrTypes::contains_null()` for OAS 3.1 detection.
     pub nullable: Option<bool>,
     #[serde(default)]
     pub required: Vec<String>,
@@ -162,6 +165,12 @@ pub struct Schema {
     pub one_of: Vec<RawOrRef<Schema>>,
     pub minimum: Option<f64>,
     pub maximum: Option<f64>,
+    /// OAS 3.1: numeric exclusive lower bound (3.0 used a boolean — not supported).
+    #[serde(rename = "exclusiveMinimum")]
+    pub exclusive_minimum: Option<f64>,
+    /// OAS 3.1: numeric exclusive upper bound (3.0 used a boolean — not supported).
+    #[serde(rename = "exclusiveMaximum")]
+    pub exclusive_maximum: Option<f64>,
     #[serde(rename = "minLength")]
     pub min_length: Option<u64>,
     #[serde(rename = "maxLength")]
@@ -205,6 +214,47 @@ pub enum SchemaType {
     Boolean,
     Array,
     Object,
+    /// OpenAPI 3.1: `"null"` is a valid type name.
+    Null,
+}
+
+/// OpenAPI 3.0 uses a single string for `type`; 3.1 allows an array.
+/// This enum handles both via `#[serde(untagged)]`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum SchemaTypeOrTypes {
+    Single(SchemaType),
+    Multiple(Vec<SchemaType>),
+}
+
+impl SchemaTypeOrTypes {
+    /// Returns the primary type — the first non-null type in the list.
+    /// For a single non-null type, returns that type.
+    pub fn primary(&self) -> Option<&SchemaType> {
+        match self {
+            Self::Single(t) => {
+                if matches!(t, SchemaType::Null) {
+                    None
+                } else {
+                    Some(t)
+                }
+            }
+            Self::Multiple(ts) => ts.iter().find(|t| !matches!(t, SchemaType::Null)),
+        }
+    }
+
+    /// Returns true if `"null"` appears in the type list.
+    pub fn contains_null(&self) -> bool {
+        match self {
+            Self::Single(t) => matches!(t, SchemaType::Null),
+            Self::Multiple(ts) => ts.iter().any(|t| matches!(t, SchemaType::Null)),
+        }
+    }
+
+    /// Returns true if the primary type matches `t`.
+    pub fn is(&self, t: &SchemaType) -> bool {
+        self.primary() == Some(t)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

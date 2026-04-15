@@ -284,6 +284,49 @@ fn petstore_pet_tags_field_uses_ref_items() {
     }
 }
 
+// ─── OpenAPI 3.1 nullable type array ─────────────────────────────────────────
+
+/// OAS 3.1 `type: ["string", "null"]` must resolve to nullable: true.
+#[test]
+fn openapi31_nullable_type_array_is_parsed() {
+    use openapi_php::ir::ResolvedSchema;
+    let spec = openapi_php::parser::load_and_resolve(&fixture("openapi31_nullable.yaml")).unwrap();
+    let item = spec.schemas.get("Item").expect("Item schema must exist");
+    if let ResolvedSchema::Object(obj) = item {
+        let desc_prop = obj
+            .properties
+            .get("description")
+            .expect("description property must exist");
+        assert!(
+            desc_prop.nullable,
+            "description should be nullable (3.1 type array)"
+        );
+
+        let score_prop = obj
+            .properties
+            .get("score")
+            .expect("score property must exist");
+        assert!(score_prop.nullable, "score should be nullable");
+
+        let rating_prop = obj
+            .properties
+            .get("rating")
+            .expect("rating property must exist");
+        assert!(rating_prop.nullable, "rating should be nullable");
+
+        let id_prop = obj.properties.get("id").expect("id property must exist");
+        assert!(!id_prop.nullable, "id should not be nullable");
+
+        let name_prop = obj
+            .properties
+            .get("name")
+            .expect("name property must exist");
+        assert!(!name_prop.nullable, "name should not be nullable");
+    } else {
+        panic!("Item should be an object schema");
+    }
+}
+
 /// Pet.createdAt must carry format: date-time.
 #[test]
 fn petstore_pet_created_at_has_date_time_format() {

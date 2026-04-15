@@ -26,6 +26,10 @@ pub struct PrimitiveSchema {
     pub max_length: Option<u64>,
     pub minimum: Option<f64>,
     pub maximum: Option<f64>,
+    /// OAS 3.1 numeric exclusive lower bound (`exclusiveMinimum`).
+    pub exclusive_minimum: Option<f64>,
+    /// OAS 3.1 numeric exclusive upper bound (`exclusiveMaximum`).
+    pub exclusive_maximum: Option<f64>,
     pub pattern: Option<String>,
 }
 

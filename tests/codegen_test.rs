@@ -784,7 +784,9 @@ fn phpstan_to_shape_values_are_non_null() {
     // array_filter guarantees non-null values, so the toArray shape must not use |null.
     // The @phpstan-type declaration is reused for both fromArray and toArray.
     let alias_start = item.find("@phpstan-type ItemData array{").unwrap_or(0);
-    let alias_end = item[alias_start..].find('}').unwrap_or(item.len() - alias_start);
+    let alias_end = item[alias_start..]
+        .find('}')
+        .unwrap_or(item.len() - alias_start);
     let shape = &item[alias_start..alias_start + alias_end];
 
     // fromArray keys may have |null for optional fields; that's in the shape definition
@@ -794,7 +796,10 @@ fn phpstan_to_shape_values_are_non_null() {
         "toArray must reference the named type alias for @return:\n{item}"
     );
     // The shape block itself must exist
-    assert!(!shape.is_empty(), "Type alias shape block must not be empty");
+    assert!(
+        !shape.is_empty(),
+        "Type alias shape block must not be empty"
+    );
 }
 
 // ─── PHPStan list<T> precision tests ──────────────────────────────────────────
@@ -1009,7 +1014,9 @@ fn query_params_use_array_filter_to_skip_nulls() {
     );
     // L2: bool false must not produce empty query string — cast via array_map/is_bool
     assert!(
-        client.contains("array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams)"),
+        client.contains(
+            "array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams)"
+        ),
         "Bool query params must be cast to 'true'/'false' strings:\n{client}"
     );
     assert!(
@@ -1175,15 +1182,16 @@ fn all_required_query_params_skip_array_filter() {
     let ctx = build_client_ctx(&spec, "App\\Test");
 
     // listPets has optional params → has_optional_query_params = true
-    let list_pets = ctx.endpoints.iter().find(|ep| ep.fn_name == "listPets").unwrap();
+    let list_pets = ctx
+        .endpoints
+        .iter()
+        .find(|ep| ep.fn_name == "listPets")
+        .unwrap();
     assert!(
         list_pets.has_optional_query_params,
         "listPets has optional query params, flag must be true"
     );
-    assert!(
-        list_pets.has_query_params,
-        "listPets has query params"
-    );
+    assert!(list_pets.has_query_params, "listPets has query params");
 }
 
 // ─── L2: bool false query params must not produce empty string ────────────────
@@ -1205,7 +1213,9 @@ fn bool_query_params_are_cast_to_true_false_strings() {
 
     // Optional path must have the is_bool cast (after array_filter)
     assert!(
-        client.contains("array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams)"),
+        client.contains(
+            "array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams)"
+        ),
         "Optional-param path must cast booleans to 'true'/'false':\n{client}"
     );
     // !empty() used instead of !== [] (L1)
@@ -1244,7 +1254,9 @@ fn array_of_dto_response_emits_list_phpdoc_and_array_map() {
     );
     // Raw decodeJson must not be returned directly for typed arrays
     assert!(
-        !client.contains("return $this->decodeJson($response);\n    }\n\n    /**\n     * List all pets"),
+        !client.contains(
+            "return $this->decodeJson($response);\n    }\n\n    /**\n     * List all pets"
+        ),
         "listPets must not return raw decodeJson result"
     );
 }
@@ -1290,10 +1302,16 @@ fn model_emits_phpstan_type_alias_in_class_docblock() {
     // Class-level @phpstan-type must appear before the class keyword
     let class_pos = item.find("class Item").unwrap();
     let alias_pos = item.find("@phpstan-type ItemData").unwrap();
-    assert!(alias_pos < class_pos, "@phpstan-type must appear before class declaration");
+    assert!(
+        alias_pos < class_pos,
+        "@phpstan-type must appear before class declaration"
+    );
 
     // fromArray and toArray must reference the alias, not inline shapes
-    assert!(item.contains("@param ItemData $data"), "fromArray must use alias");
+    assert!(
+        item.contains("@param ItemData $data"),
+        "fromArray must use alias"
+    );
     assert!(item.contains("@return ItemData"), "toArray must use alias");
 }
 
@@ -1340,5 +1358,42 @@ fn enum_without_x_enum_descriptions_has_no_label_method() {
     assert!(
         !status.contains("label()"),
         "Enum without x-enum-descriptions must not emit label():\n{status}"
+    );
+}
+
+// ─── OpenAPI 3.1 nullable type array codegen ─────────────────────────────────
+
+/// OAS 3.1 `type: ["string","null"]` must generate `?string $description`.
+#[test]
+fn openapi31_nullable_generates_correct_php_type() {
+    let spec = parser::load_and_resolve(&fixture("openapi31_nullable.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let item_php = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    assert!(
+        item_php.contains("public ?string $description"),
+        "description should be ?string\n{item_php}"
+    );
+    assert!(
+        item_php.contains("public ?float $score"),
+        "score should be ?float\n{item_php}"
+    );
+    assert!(
+        item_php.contains("public ?int $rating"),
+        "rating should be ?int\n{item_php}"
+    );
+    // Non-nullable fields must not be nullable
+    assert!(
+        item_php.contains("public int $id"),
+        "id should be non-nullable int\n{item_php}"
+    );
+    assert!(
+        item_php.contains("public string $name"),
+        "name should be non-nullable string\n{item_php}"
     );
 }

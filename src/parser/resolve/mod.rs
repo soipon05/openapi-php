@@ -235,14 +235,23 @@ impl<'a> Resolver<'a> {
             return self.resolve_union(schema);
         }
 
-        let is_object = schema.schema_type == Some(SchemaType::Object)
+        let is_object = schema
+            .schema_type
+            .as_ref()
+            .map(|t| t.is(&SchemaType::Object))
+            .unwrap_or(false)
             || (!schema.properties.is_empty() && schema.schema_type.is_none());
 
         if is_object {
             return self.resolve_object(schema);
         }
 
-        if schema.schema_type == Some(SchemaType::Array) {
+        if schema
+            .schema_type
+            .as_ref()
+            .map(|t| t.is(&SchemaType::Array))
+            .unwrap_or(false)
+        {
             return self.resolve_array(schema);
         }
 
@@ -257,7 +266,7 @@ impl<'a> Resolver<'a> {
         for (name, prop_ror) in props {
             let (nullable, description, deprecated) = if let RawOrRef::Value(s) = &prop_ror {
                 (
-                    s.nullable.unwrap_or(false),
+                    is_nullable(s),
                     s.description.clone(),
                     s.deprecated.unwrap_or(false),
                 )
@@ -304,13 +313,15 @@ impl<'a> Resolver<'a> {
                 max_length: None,
                 minimum: None,
                 maximum: None,
+                exclusive_minimum: None,
+                exclusive_maximum: None,
                 pattern: None,
             })
         };
         Ok(ResolvedSchema::Array(ArraySchema {
             items: Box::new(items),
             description: schema.description.clone(),
-            nullable: schema.nullable.unwrap_or(false),
+            nullable: is_nullable(schema),
         }))
     }
 
@@ -336,7 +347,7 @@ impl<'a> Resolver<'a> {
         for (name, prop_ror) in own_props {
             let (nullable, prop_desc, deprecated) = if let RawOrRef::Value(s) = &prop_ror {
                 (
-                    s.nullable.unwrap_or(false),
+                    is_nullable(s),
                     s.description.clone(),
                     s.deprecated.unwrap_or(false),
                 )
@@ -738,6 +749,18 @@ fn ref_name(ref_path: &str) -> &str {
     ref_path.rsplit('/').next().unwrap_or(ref_path)
 }
 
+/// Returns true if the schema is nullable under either OAS 3.0 or 3.1 rules:
+/// - OAS 3.0: `nullable: true`
+/// - OAS 3.1: `type` array contains `"null"`
+fn is_nullable(schema: &Schema) -> bool {
+    if let Some(t) = &schema.schema_type
+        && t.contains_null()
+    {
+        return true;
+    }
+    schema.nullable.unwrap_or(false)
+}
+
 fn mixed() -> ResolvedSchema {
     ResolvedSchema::Primitive(PrimitiveSchema {
         php_type: PhpPrimitive::Mixed,
@@ -749,12 +772,14 @@ fn mixed() -> ResolvedSchema {
         max_length: None,
         minimum: None,
         maximum: None,
+        exclusive_minimum: None,
+        exclusive_maximum: None,
         pattern: None,
     })
 }
 
 fn build_primitive(schema: &Schema) -> PrimitiveSchema {
-    let php_type = match schema.schema_type.as_ref() {
+    let php_type = match schema.schema_type.as_ref().and_then(|t| t.primary()) {
         Some(SchemaType::String) => match schema.format.as_deref() {
             Some("date-time") | Some("date") => PhpPrimitive::DateTime,
             _ => PhpPrimitive::String,
@@ -768,12 +793,14 @@ fn build_primitive(schema: &Schema) -> PrimitiveSchema {
         php_type,
         format: schema.format.clone(),
         description: schema.description.clone(),
-        nullable: schema.nullable.unwrap_or(false),
+        nullable: is_nullable(schema),
         example: schema.example.clone(),
         min_length: schema.min_length,
         max_length: schema.max_length,
         minimum: schema.minimum,
         maximum: schema.maximum,
+        exclusive_minimum: schema.exclusive_minimum,
+        exclusive_maximum: schema.exclusive_maximum,
         pattern: schema.pattern.clone(),
     }
 }
@@ -800,7 +827,11 @@ fn build_enum(schema: &Schema) -> EnumSchema {
         .filter_map(|(idx, v)| {
             let label = descriptions.get(idx).and_then(|s| {
                 let trimmed = s.trim();
-                if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
             });
             match v {
                 EnumValue::Null => None,
