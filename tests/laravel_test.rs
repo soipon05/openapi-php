@@ -338,12 +338,22 @@ fn laravel_routes_use_provided_namespace() {
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("routes/api.php")];
 
+    // use import must contain FQCN with provided namespace
     assert!(
-        content.contains("MyCompany\\Api\\Http\\Controllers"),
-        "routes/api.php must use the provided namespace, not hardcoded App:\n{content}"
+        content.contains("use MyCompany\\Api\\Http\\Controllers\\ItemController;"),
+        "routes/api.php must have use import with provided namespace:\n{content}"
     );
     assert!(
-        !content.contains("App\\Http\\Controllers"),
+        !content.contains("use App\\Http\\Controllers"),
         "routes/api.php must not hardcode App\\Http\\Controllers:\n{content}"
+    );
+    // Route:: calls must use short class name, not FQCN inline
+    assert!(
+        content.contains("[ItemController::class,"),
+        "routes/api.php must use short class name in Route:: calls:\n{content}"
+    );
+    assert!(
+        !content.contains("\\MyCompany\\Api\\Http\\Controllers\\ItemController::class"),
+        "routes/api.php must not inline FQCN in Route:: calls:\n{content}"
     );
 }

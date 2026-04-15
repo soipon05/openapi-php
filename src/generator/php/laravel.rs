@@ -67,6 +67,7 @@ struct ControllerMethodCtx {
 
 #[derive(Debug, Serialize)]
 struct RoutesCtx {
+    controller_imports: Vec<String>,
     routes: Vec<RouteCtx>,
 }
 
@@ -74,7 +75,7 @@ struct RoutesCtx {
 struct RouteCtx {
     method: String,
     path: String,
-    controller: String,
+    controller_short: String,
     action: String,
     comment: String,
 }
@@ -420,6 +421,8 @@ fn resource_field_expr(
 }
 
 fn build_routes_ctx(spec: &ResolvedSpec, namespace: &str) -> RoutesCtx {
+    let mut controller_imports: Vec<String> = Vec::new();
+
     let routes = spec
         .endpoints
         .iter()
@@ -435,11 +438,16 @@ fn build_routes_ctx(spec: &ResolvedSpec, namespace: &str) -> RoutesCtx {
                     .to_string()
             });
             let controller_base = to_pascal_case(&singularize(&tag));
-            let controller = format!("{namespace}\\Http\\Controllers\\{controller_base}Controller");
+            let controller_short = format!("{controller_base}Controller");
+            let fqcn = format!("{namespace}\\Http\\Controllers\\{controller_short}");
+
+            if !controller_imports.contains(&fqcn) {
+                controller_imports.push(fqcn);
+            }
 
             let action = derive_action(&ep.method, &ep.path_params);
             let comment = format!(
-                "{} {} → {controller_base}Controller@{action}",
+                "{} {} → {controller_short}@{action}",
                 ep.method.as_str(),
                 path,
             );
@@ -447,14 +455,19 @@ fn build_routes_ctx(spec: &ResolvedSpec, namespace: &str) -> RoutesCtx {
             RouteCtx {
                 method,
                 path,
-                controller,
+                controller_short,
                 action,
                 comment,
             }
         })
         .collect();
 
-    RoutesCtx { routes }
+    controller_imports.sort();
+
+    RoutesCtx {
+        controller_imports,
+        routes,
+    }
 }
 
 fn singularize(s: &str) -> String {
