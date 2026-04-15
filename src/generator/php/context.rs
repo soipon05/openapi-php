@@ -37,6 +37,10 @@ pub struct ModelCtx {
     /// array_filter removes null values, so nullable keys are optional (`?`) but their
     /// value type is the non-null base type.
     pub phpstan_to_shape: Vec<String>,
+    /// true when at least one property has type `\DateTimeImmutable`.
+    /// Used to emit `@throws \Exception` on `fromArray` (constructor can throw on
+    /// invalid date strings).
+    pub has_datetime_prop: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -325,6 +329,9 @@ pub fn build_model_ctx(
 
     let phpstan_from_shape = properties.iter().map(phpstan_from_entry).collect();
     let phpstan_to_shape = properties.iter().map(phpstan_to_entry).collect();
+    let has_datetime_prop = properties
+        .iter()
+        .any(|p| p.php_type.contains("DateTimeImmutable"));
 
     ModelCtx {
         name: sanitize_php_ident(name),
@@ -335,6 +342,7 @@ pub fn build_model_ctx(
         use_readonly_class,
         phpstan_from_shape,
         phpstan_to_shape,
+        has_datetime_prop,
     }
 }
 

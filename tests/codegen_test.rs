@@ -979,3 +979,69 @@ fn phpstan_shape_single_enum_ref_uses_backing_type() {
         "enum Ref must not appear as array<string,mixed> in shape:\n{pet}"
     );
 }
+
+// ─── ISSUE-8: null query params must not be sent ──────────────────────────────
+
+#[test]
+fn query_params_use_array_filter_to_skip_nulls() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
+
+    assert!(
+        client.contains("array_filter([") && client.contains("], fn($v) => $v !== null)"),
+        "Query params must be filtered through array_filter to drop nulls:\n{client}"
+    );
+    assert!(
+        client.contains("$queryParams !== [] ? '?' . http_build_query($queryParams) : ''"),
+        "Query string must be omitted when all params are null:\n{client}"
+    );
+    assert!(
+        !client.contains("'?' . http_build_query(["),
+        "Must not pass raw array directly to http_build_query:\n{client}"
+    );
+}
+
+// ─── ISSUE-10: @throws \Exception on fromArray when DateTimeImmutable present ─
+
+#[test]
+fn from_array_emits_throws_when_datetime_prop_present() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    assert!(
+        item.contains("@throws \\Exception On invalid date-time string"),
+        "fromArray must declare @throws \\Exception when model has DateTimeImmutable:\n{item}"
+    );
+}
+
+#[test]
+fn from_array_no_throws_when_no_datetime_prop() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let req = files[&PathBuf::from("Models/CreateItemRequest.php")].as_str();
+
+    assert!(
+        !req.contains("@throws"),
+        "fromArray must NOT declare @throws when model has no DateTimeImmutable:\n{req}"
+    );
+}
