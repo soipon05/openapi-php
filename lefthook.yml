@@ -1,0 +1,12 @@
+commit-msg:
+  commands:
+    validate-message:
+      run: .lefthook/validate-commit-msg.sh {1}
+
+pre-commit:
+  parallel: true
+  commands:
+    check-fixtures:
+      run: .lefthook/check-fixtures.sh
+    clippy:
+      run: cargo clippy -- -D warnings
