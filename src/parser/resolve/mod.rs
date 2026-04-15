@@ -255,15 +255,14 @@ impl<'a> Resolver<'a> {
             schema.properties.clone().into_iter().collect();
         let mut properties = IndexMap::new();
         for (name, prop_ror) in props {
-            let nullable = if let RawOrRef::Value(s) = &prop_ror {
-                s.nullable.unwrap_or(false)
+            let (nullable, description, deprecated) = if let RawOrRef::Value(s) = &prop_ror {
+                (
+                    s.nullable.unwrap_or(false),
+                    s.description.clone(),
+                    s.deprecated.unwrap_or(false),
+                )
             } else {
-                false
-            };
-            let description = if let RawOrRef::Value(s) = &prop_ror {
-                s.description.clone()
-            } else {
-                None
+                (false, None, false)
             };
             let is_required = required.contains(&name);
             let prop_schema = match &prop_ror {
@@ -277,6 +276,7 @@ impl<'a> Resolver<'a> {
                     required: is_required,
                     nullable,
                     description,
+                    deprecated,
                 },
             );
         }
@@ -300,6 +300,11 @@ impl<'a> Resolver<'a> {
                 description: None,
                 nullable: false,
                 example: None,
+                min_length: None,
+                max_length: None,
+                minimum: None,
+                maximum: None,
+                pattern: None,
             })
         };
         Ok(ResolvedSchema::Array(ArraySchema {
@@ -329,15 +334,14 @@ impl<'a> Resolver<'a> {
         let own_props: Vec<(String, RawOrRef<Schema>)> =
             schema.properties.clone().into_iter().collect();
         for (name, prop_ror) in own_props {
-            let nullable = if let RawOrRef::Value(s) = &prop_ror {
-                s.nullable.unwrap_or(false)
+            let (nullable, prop_desc, deprecated) = if let RawOrRef::Value(s) = &prop_ror {
+                (
+                    s.nullable.unwrap_or(false),
+                    s.description.clone(),
+                    s.deprecated.unwrap_or(false),
+                )
             } else {
-                false
-            };
-            let prop_desc = if let RawOrRef::Value(s) = &prop_ror {
-                s.description.clone()
-            } else {
-                None
+                (false, None, false)
             };
             let is_required = required.contains(&name);
             let prop_schema = match &prop_ror {
@@ -351,6 +355,7 @@ impl<'a> Resolver<'a> {
                     required: is_required,
                     nullable,
                     description: prop_desc,
+                    deprecated,
                 },
             );
         }
@@ -740,6 +745,11 @@ fn mixed() -> ResolvedSchema {
         description: None,
         nullable: false,
         example: None,
+        min_length: None,
+        max_length: None,
+        minimum: None,
+        maximum: None,
+        pattern: None,
     })
 }
 
@@ -760,6 +770,11 @@ fn build_primitive(schema: &Schema) -> PrimitiveSchema {
         description: schema.description.clone(),
         nullable: schema.nullable.unwrap_or(false),
         example: schema.example.clone(),
+        min_length: schema.min_length,
+        max_length: schema.max_length,
+        minimum: schema.minimum,
+        maximum: schema.maximum,
+        pattern: schema.pattern.clone(),
     }
 }
 
@@ -775,27 +790,41 @@ fn build_enum(schema: &Schema) -> EnumSchema {
         EnumBackingType::String
     };
 
+    // Pair each non-null enum value with its optional description label.
+    // x-enum-descriptions is index-aligned with enum_values (nulls count toward the index).
+    let descriptions = &schema.x_enum_descriptions;
     let variants = schema
         .enum_values
         .iter()
-        .filter_map(|v| match v {
-            EnumValue::Null => None,
-            EnumValue::String(s) => Some(EnumVariant {
-                name: to_safe_enum_name(s),
-                value: s.clone(),
-            }),
-            EnumValue::Integer(i) => Some(EnumVariant {
-                name: format!("Value{i}"),
-                value: i.to_string(),
-            }),
-            EnumValue::Float(f) => Some(EnumVariant {
-                name: format!("Value{}", *f as i64),
-                value: f.to_string(),
-            }),
-            EnumValue::Bool(b) => Some(EnumVariant {
-                name: if *b { "True" } else { "False" }.to_string(),
-                value: b.to_string(),
-            }),
+        .enumerate()
+        .filter_map(|(idx, v)| {
+            let label = descriptions.get(idx).and_then(|s| {
+                let trimmed = s.trim();
+                if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+            });
+            match v {
+                EnumValue::Null => None,
+                EnumValue::String(s) => Some(EnumVariant {
+                    name: to_safe_enum_name(s),
+                    value: s.clone(),
+                    label,
+                }),
+                EnumValue::Integer(i) => Some(EnumVariant {
+                    name: format!("Value{i}"),
+                    value: i.to_string(),
+                    label,
+                }),
+                EnumValue::Float(f) => Some(EnumVariant {
+                    name: format!("Value{}", *f as i64),
+                    value: f.to_string(),
+                    label,
+                }),
+                EnumValue::Bool(b) => Some(EnumVariant {
+                    name: if *b { "True" } else { "False" }.to_string(),
+                    value: b.to_string(),
+                    label,
+                }),
+            }
         })
         .collect();
 

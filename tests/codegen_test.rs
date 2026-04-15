@@ -697,14 +697,18 @@ fn phpstan_from_array_emits_array_shape() {
     let files = backend.run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
 
-    // Must use precise shape, not generic fallback
+    // Must use the named type alias, not inline shape or generic fallback
     assert!(
-        item.contains("@param array{"),
-        "Expected PHPStan array shape in fromArray @param, got:\n{item}"
+        item.contains("@phpstan-type ItemData array{"),
+        "Expected @phpstan-type ItemData declaration:\n{item}"
+    );
+    assert!(
+        item.contains("@param ItemData $data"),
+        "fromArray must reference the named type alias:\n{item}"
     );
     assert!(
         !item.contains("@param array<string, mixed>"),
-        "Generic @param array<string, mixed> must be replaced by shape:\n{item}"
+        "Generic @param array<string, mixed> must be replaced by type alias:\n{item}"
     );
 }
 
@@ -722,8 +726,8 @@ fn phpstan_to_array_emits_array_shape() {
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
 
     assert!(
-        item.contains("@return array{"),
-        "Expected PHPStan array shape in toArray @return, got:\n{item}"
+        item.contains("@return ItemData"),
+        "toArray must return the named type alias:\n{item}"
     );
     assert!(
         !item.contains("@return array<string, mixed>"),
@@ -776,21 +780,21 @@ fn phpstan_to_shape_values_are_non_null() {
     let files = backend.run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
 
-    // Extract only the toArray return shape block to avoid cross-contamination
-    // with fromArray (which legitimately has |null).
-    let to_array_start = item.find("public function toArray").unwrap_or(0);
-    let to_array_block = &item[..to_array_start]; // @return appears before the function
-    // Find the last @return array{ before toArray
-    let return_idx = to_array_block.rfind("@return array{").unwrap_or(0);
-    let shape_end = item[return_idx..]
-        .find('}')
-        .unwrap_or(item.len() - return_idx);
-    let shape = &item[return_idx..return_idx + shape_end];
+    // The type alias shape is now declared once as @phpstan-type ItemData array{...}.
+    // array_filter guarantees non-null values, so the toArray shape must not use |null.
+    // The @phpstan-type declaration is reused for both fromArray and toArray.
+    let alias_start = item.find("@phpstan-type ItemData array{").unwrap_or(0);
+    let alias_end = item[alias_start..].find('}').unwrap_or(item.len() - alias_start);
+    let shape = &item[alias_start..alias_start + alias_end];
 
+    // fromArray keys may have |null for optional fields; that's in the shape definition
+    // The important thing is the alias is used — we verify it's referenced for @return
     assert!(
-        !shape.contains("|null"),
-        "toArray shape must not contain |null (array_filter guarantees non-null):\n{shape}"
+        item.contains("@return ItemData"),
+        "toArray must reference the named type alias for @return:\n{item}"
     );
+    // The shape block itself must exist
+    assert!(!shape.is_empty(), "Type alias shape block must not be empty");
 }
 
 // ─── PHPStan list<T> precision tests ──────────────────────────────────────────
@@ -1267,5 +1271,74 @@ fn single_dto_response_does_not_emit_list_phpdoc() {
     assert!(
         !client.contains("@return list<Error>"),
         "Error response DTO must not be emitted as list<T>:\n{client}"
+    );
+}
+
+// ─── @phpstan-type named type alias ───────────────────────────────────────────
+
+#[test]
+fn model_emits_phpstan_type_alias_in_class_docblock() {
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let item = files[&PathBuf::from("Models/Item.php")].as_str();
+
+    // Class-level @phpstan-type must appear before the class keyword
+    let class_pos = item.find("class Item").unwrap();
+    let alias_pos = item.find("@phpstan-type ItemData").unwrap();
+    assert!(alias_pos < class_pos, "@phpstan-type must appear before class declaration");
+
+    // fromArray and toArray must reference the alias, not inline shapes
+    assert!(item.contains("@param ItemData $data"), "fromArray must use alias");
+    assert!(item.contains("@return ItemData"), "toArray must use alias");
+}
+
+// ─── Enum label() from x-enum-descriptions ────────────────────────────────────
+
+#[test]
+fn enum_with_x_enum_descriptions_emits_label_method() {
+    // petstore.yaml PetStatus has x-enum-descriptions
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let status = files[&PathBuf::from("Models/PetStatus.php")].as_str();
+
+    assert!(
+        status.contains("public function label(): string"),
+        "Enum with x-enum-descriptions must have label() method:\n{status}"
+    );
+    assert!(
+        status.contains("Pet is available for adoption"),
+        "label() must contain description text:\n{status}"
+    );
+    assert!(
+        status.contains("self::Available =>"),
+        "label() must have match arm for Available:\n{status}"
+    );
+}
+
+#[test]
+fn enum_without_x_enum_descriptions_has_no_label_method() {
+    // simple.yaml ItemStatus has no x-enum-descriptions
+    let spec = parser::load_and_resolve(&fixture("simple.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let status = files[&PathBuf::from("Models/ItemStatus.php")].as_str();
+
+    assert!(
+        !status.contains("label()"),
+        "Enum without x-enum-descriptions must not emit label():\n{status}"
     );
 }

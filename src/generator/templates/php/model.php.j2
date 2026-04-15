@@ -10,9 +10,21 @@ use {{ namespace }}\Models\{{ import }};
 {% if use_imports %}
 
 {% endif %}
-{% if description %}
+{% if description or type_alias_name %}
 /**
+{% if description %}
  * {{ description }}
+{% endif %}
+{% if type_alias_name %}
+{% if description %}
+ *
+{% endif %}
+ * @phpstan-type {{ type_alias_name }} array{
+{% for entry in phpstan_from_shape %}
+ *     {{ entry }},
+{% endfor %}
+ * }
+{% endif %}
  */
 {% endif %}
 {% if use_readonly_class %}
@@ -41,6 +53,9 @@ final class {{ name }}
 {% endif %}
          */
 {% endif %}
+{% if prop.deprecated %}
+        #[\Deprecated]
+{% endif %}
 {% if use_readonly_class %}
         public {{ prop.php_type }} ${{ prop.camel }}{% if not prop.required %} = null{% endif %},
 {% else %}
@@ -50,7 +65,9 @@ final class {{ name }}
     ) {}
 
     /**
-{% if phpstan_from_shape %}
+{% if type_alias_name %}
+     * @param {{ type_alias_name }} $data
+{% elif phpstan_from_shape %}
      * @param array{
 {% for entry in phpstan_from_shape %}
      *     {{ entry }},
@@ -74,7 +91,9 @@ final class {{ name }}
     }
 
     /**
-{% if phpstan_to_shape %}
+{% if type_alias_name %}
+     * @return {{ type_alias_name }}
+{% elif phpstan_to_shape %}
      * @return array{
 {% for entry in phpstan_to_shape %}
      *     {{ entry }},

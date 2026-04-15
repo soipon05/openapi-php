@@ -16,4 +16,16 @@ enum {{ name }}: {{ backing_type }}
 {% for variant in variants %}
     case {{ variant.name }} = {{ variant.value }};
 {% endfor %}
+{% if has_labels %}
+
+    /** Returns a human-readable label for this enum value. */
+    public function label(): string
+    {
+        return match ($this) {
+{% for variant in variants %}
+            self::{{ variant.name }} => '{{ variant.label | default(value=variant.name) }}',
+{% endfor %}
+        };
+    }
+{% endif %}
 }

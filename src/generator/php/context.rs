@@ -44,6 +44,10 @@ pub struct ModelCtx {
     /// The exception class name for `@throws` on `fromArray`.
     /// `\DateMalformedStringException` for PHP 8.3+, `\Exception` for older versions.
     pub datetime_throws: String,
+    /// Named PHPStan type alias, e.g. `PetData`.
+    /// Emitted as `@phpstan-type PetData array{...}` before the class declaration.
+    /// Empty string when the model has no properties (no shape to alias).
+    pub type_alias_name: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,6 +77,7 @@ pub struct PropertyCtx {
     pub format: Option<String>,
     pub from_array_expr: String,
     pub to_array_expr: String,
+    pub deprecated: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -83,6 +88,8 @@ pub struct EnumCtx {
     /// "string" | "int"
     pub backing_type: String,
     pub variants: Vec<VariantCtx>,
+    /// true when at least one variant has a label (from `x-enum-descriptions`)
+    pub has_labels: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -90,7 +97,10 @@ pub struct VariantCtx {
     pub name: String,
     /// already PHP-formatted: "'active'" or "1"
     pub value: String,
+    /// Human-readable label from `x-enum-descriptions`; `None` when not set.
+    pub label: Option<String>,
 }
+
 
 #[derive(Debug, Serialize)]
 pub struct ClientCtx {
@@ -332,16 +342,23 @@ pub fn build_model_ctx(
                 format,
                 from_array_expr: from_expr,
                 to_array_expr: to_expr,
+                deprecated: prop.deprecated,
             }
         })
         .collect();
 
-    let phpstan_from_shape = properties.iter().map(phpstan_from_entry).collect();
-    let phpstan_to_shape = properties.iter().map(phpstan_to_entry).collect();
+    let phpstan_from_shape: Vec<String> = properties.iter().map(phpstan_from_entry).collect();
+    let phpstan_to_shape: Vec<String> = properties.iter().map(phpstan_to_entry).collect();
     let has_datetime_prop = schema.properties.values().any(|prop| has_datetime_schema(&prop.schema));
     let datetime_throws = match php_version {
         PhpVersion::Php83 | PhpVersion::Php84 => "\\DateMalformedStringException".to_string(),
         _ => "\\Exception".to_string(),
+    };
+
+    let type_alias_name = if phpstan_from_shape.is_empty() {
+        String::new()
+    } else {
+        format!("{}Data", sanitize_php_ident(name))
     };
 
     ModelCtx {
@@ -355,6 +372,7 @@ pub fn build_model_ctx(
         phpstan_to_shape,
         has_datetime_prop,
         datetime_throws,
+        type_alias_name,
     }
 }
 
@@ -363,7 +381,7 @@ pub fn build_enum_ctx(name: &str, schema: &EnumSchema, namespace: &str) -> EnumC
         EnumBackingType::String => "string",
         EnumBackingType::Int => "int",
     };
-    let variants = schema
+    let variants: Vec<VariantCtx> = schema
         .variants
         .iter()
         .map(|v| {
@@ -388,9 +406,12 @@ pub fn build_enum_ctx(name: &str, schema: &EnumSchema, namespace: &str) -> EnumC
             VariantCtx {
                 name: sanitize_php_ident(&v.name),
                 value,
+                label: v.label.clone(),
             }
         })
         .collect();
+
+    let has_labels = variants.iter().any(|v| v.label.is_some());
 
     EnumCtx {
         name: sanitize_php_ident(name),
@@ -398,6 +419,7 @@ pub fn build_enum_ctx(name: &str, schema: &EnumSchema, namespace: &str) -> EnumC
         description: schema.description.as_deref().map(sanitize_phpdoc),
         backing_type: backing_type.to_string(),
         variants,
+        has_labels,
     }
 }
 

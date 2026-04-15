@@ -175,6 +175,10 @@ pub struct Schema {
     pub read_only: Option<bool>,
     #[serde(rename = "writeOnly")]
     pub write_only: Option<bool>,
+    pub deprecated: Option<bool>,
+    /// Vendor extension: human-readable label per enum value (index-aligned with `enum_values`).
+    #[serde(rename = "x-enum-descriptions", default)]
+    pub x_enum_descriptions: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

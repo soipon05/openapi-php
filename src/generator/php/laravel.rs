@@ -327,12 +327,39 @@ fn derive_validation_rules(
         ResolvedSchema::Primitive(p) => match p.php_type {
             PhpPrimitive::String | PhpPrimitive::Mixed => {
                 rules.push("string".to_string());
-                if required {
-                    rules.push("max:255".to_string());
+                match (p.min_length, p.max_length) {
+                    (Some(min), Some(max)) => {
+                        rules.push(format!("between:{min},{max}"));
+                    }
+                    (Some(min), None) => rules.push(format!("min:{min}")),
+                    (None, Some(max)) => rules.push(format!("max:{max}")),
+                    (None, None) if required => rules.push("max:255".to_string()),
+                    _ => {}
+                }
+                if let Some(pat) = &p.pattern {
+                    // Escape forward slashes; Laravel uses / as regex delimiter
+                    let escaped = pat.replace('/', "\\/");
+                    rules.push(format!("regex:/{escaped}/"));
                 }
             }
-            PhpPrimitive::Int => rules.push("integer".to_string()),
-            PhpPrimitive::Float => rules.push("numeric".to_string()),
+            PhpPrimitive::Int => {
+                rules.push("integer".to_string());
+                if let Some(min) = p.minimum {
+                    rules.push(format!("min:{}", min as i64));
+                }
+                if let Some(max) = p.maximum {
+                    rules.push(format!("max:{}", max as i64));
+                }
+            }
+            PhpPrimitive::Float => {
+                rules.push("numeric".to_string());
+                if let Some(min) = p.minimum {
+                    rules.push(format!("min:{min}"));
+                }
+                if let Some(max) = p.maximum {
+                    rules.push(format!("max:{max}"));
+                }
+            }
             PhpPrimitive::Bool => rules.push("boolean".to_string()),
             PhpPrimitive::DateTime => rules.push("date".to_string()),
         },

@@ -196,6 +196,10 @@ components:
       type: string
       description: Lifecycle status of a pet in the store.
       enum: [available, pending, sold]
+      x-enum-descriptions:
+        - Pet is available for adoption
+        - Adoption is pending approval
+        - Pet has been sold
 
     # ── Supporting objects ──────────────────────────────────────────────────
 

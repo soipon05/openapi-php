@@ -21,6 +21,12 @@ pub struct PrimitiveSchema {
     pub description: Option<String>,
     pub nullable: bool,
     pub example: Option<serde_json::Value>,
+    // Validation constraints (from OpenAPI schema keywords)
+    pub min_length: Option<u64>,
+    pub max_length: Option<u64>,
+    pub minimum: Option<f64>,
+    pub maximum: Option<f64>,
+    pub pattern: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -46,6 +52,7 @@ pub struct ResolvedProperty {
     pub required: bool,
     pub nullable: bool,
     pub description: Option<String>,
+    pub deprecated: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -68,6 +75,8 @@ pub struct EnumVariant {
     pub name: String,
     /// Original string/int value
     pub value: String,
+    /// Human-readable label from `x-enum-descriptions` vendor extension
+    pub label: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
