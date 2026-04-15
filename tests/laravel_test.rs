@@ -357,3 +357,45 @@ fn laravel_routes_use_provided_namespace() {
         "routes/api.php must not inline FQCN in Route:: calls:\n{content}"
     );
 }
+
+// ─── Multi-controller: routes/api.php emits one use import per controller ─────
+
+#[test]
+fn laravel_routes_deduplicate_controller_imports() {
+    // multi_resource.yaml: GET+POST /pets (→ PetController) and GET /owners (→ OwnerController)
+    let spec = parser::load_and_resolve(&fixture("multi_resource.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Api",
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let content = &files[&PathBuf::from("routes/api.php")];
+
+    // Each controller class must have exactly one use import (no duplicates)
+    let pet_import = "use App\\Api\\Http\\Controllers\\PetController;";
+    let owner_import = "use App\\Api\\Http\\Controllers\\OwnerController;";
+    assert!(
+        content.contains(pet_import),
+        "Expected PetController import:\n{content}"
+    );
+    assert!(
+        content.contains(owner_import),
+        "Expected OwnerController import:\n{content}"
+    );
+    // Imports must appear exactly once (no duplicates despite GET+POST both mapping to PetController)
+    assert_eq!(
+        content.matches(pet_import).count(),
+        1,
+        "PetController import must appear exactly once:\n{content}"
+    );
+    // Route:: calls use short class names
+    assert!(
+        content.contains("[PetController::class,"),
+        "PetController routes must use short class name:\n{content}"
+    );
+    assert!(
+        content.contains("[OwnerController::class,"),
+        "OwnerController routes must use short class name:\n{content}"
+    );
+}

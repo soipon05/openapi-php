@@ -60,13 +60,15 @@ final class ApiClient
             '{{ qp.name }}' => ${{ qp.php_name }},
 {% endfor %}
         ], fn($v) => $v !== null);
-        $uri = $this->baseUrl . {{ ep.path_expr }} . ($queryParams !== [] ? '?' . http_build_query($queryParams) : '');
+        $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams);
+        $uri = $this->baseUrl . {{ ep.path_expr }} . (!empty($queryParams) ? '?' . http_build_query($queryParams) : '');
 {% else %}
-        $uri = $this->baseUrl . {{ ep.path_expr }} . '?' . http_build_query([
+        $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, [
 {% for qp in ep.query_params %}
             '{{ qp.name }}' => ${{ qp.php_name }},
 {% endfor %}
         ]);
+        $uri = $this->baseUrl . {{ ep.path_expr }} . '?' . http_build_query($queryParams);
 {% endif %}
         $request = $this->requestFactory->createRequest('{{ ep.method_str }}', $uri);
 {% else %}

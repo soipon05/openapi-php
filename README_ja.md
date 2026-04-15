@@ -36,8 +36,8 @@ openapi-php generate --input openapi.yaml --framework laravel
 |---|---|
 | 高速 | Rust 製。数千ファイルを1秒未満で生成 |
 | 正確 | `$ref` 解決・`allOf` マージ・nullable・enum を完全サポート |
-| PHP 8.1 〜 8.3 | readonly DTO・`BackedEnum`・union type |
-| フレームワーク対応 | `plain`（依存ゼロ）・`laravel`（FormRequest / JsonResource / Controller / routes stub）・`symfony`（WIP、plain にフォールバック） |
+| PHP 8.1 〜 8.4 | readonly DTO・`BackedEnum`・union type |
+| フレームワーク対応 | `plain`（依存ゼロ）・`laravel`（FormRequest / JsonResource / Controller スタブ / routes stub — Laravel 12+ 対象）・`symfony`（WIP、plain にフォールバック） |
 | 差分モード | `--diff` で生成物とディスクの差異があると終了コード 1（CI ゲートに活用） |
 | ウォッチモード | `--watch` でスペック変更を検知して自動再生成 |
 | テンプレート上書き | `--templates` に Jinja2 テンプレートを置くだけでカスタマイズ |
@@ -114,7 +114,19 @@ app/Generated/
     Resources/
       PetResource.php        # JsonResource
   routes/
-    api.php              # Route::apiResource スタブ
+    api.php              # Route::get/post/… スタブ（use import 付き）
+```
+
+`routes/api.php` の出力例:
+
+```php
+use Illuminate\Support\Facades\Route;
+use App\Generated\Http\Controllers\PetController;
+
+// GET /pets → PetController@index
+Route::get('/pets', [PetController::class, 'index']);
+// POST /pets → PetController@store
+Route::post('/pets', [PetController::class, 'store']);
 ```
 
 ---
@@ -183,7 +195,7 @@ final class Shape
 | バージョン | 効果 |
 |-----------|------|
 | `8.1`（デフォルト） | 各プロパティに個別で `public readonly` を付与 |
-| `8.2` 以上 | クラス宣言が `readonly final class` になり、各プロパティの `readonly` は省略 |
+| `8.2`・`8.3`・`8.4` | クラス宣言が `readonly final class` になり、各プロパティの `readonly` は省略 |
 
 **PHP 8.1 出力（デフォルト）:**
 
@@ -230,7 +242,7 @@ path = "openapi/api.yaml"
 output    = "app/Generated"
 namespace = "App\\Generated"
 framework = "laravel"        # plain | laravel | symfony (WIP)
-php_version = "8.2"          # 8.1 | 8.2 | 8.3
+php_version = "8.2"          # 8.1 | 8.2 | 8.3 | 8.4
 ```
 
 優先順位: **CLI フラグ > openapi-php.toml > 組み込みデフォルト**
@@ -254,7 +266,7 @@ generate のオプション:
   -n, --namespace <NS>       PHP 名前空間     [デフォルト: App\Generated]
   -m, --mode <MODE>          models | client | all  [デフォルト: all]
       --framework <FW>       plain | laravel | symfony
-      --php-version <VER>    8.1 | 8.2 | 8.3
+      --php-version <VER>    8.1 | 8.2 | 8.3 | 8.4
       --templates <DIR>      Jinja2 テンプレート上書きディレクトリ
       --dry-run              書き込まずにファイルをプレビュー
       --diff                 ディスクと異なれば終了コード 1

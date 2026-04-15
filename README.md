@@ -36,8 +36,8 @@ openapi-php generate --input openapi.yaml --framework laravel
 |---|---|
 | Fast | Written in Rust; generates thousands of files in under a second |
 | Precise | Respects `$ref` resolution, `allOf`, nullable types, and enums |
-| PHP 8.1 – 8.3 | Readonly DTOs, `BackedEnum`, union types |
-| Framework-aware | `plain` (zero dependencies), `laravel` (FormRequest, JsonResource, Controller, routes stub), `symfony` (WIP — falls back to plain) |
+| PHP 8.1 – 8.4 | Readonly DTOs, `BackedEnum`, union types |
+| Framework-aware | `plain` (zero dependencies), `laravel` (FormRequest, JsonResource, Controller stub, routes stub — targets Laravel 12+), `symfony` (WIP — falls back to plain) |
 | Diff mode | `--diff` exits 1 when generated output diverges from disk — useful for CI |
 | Watch mode | `--watch` re-runs generation whenever the spec file changes |
 | Template overrides | Drop a Jinja2 template into `--templates` to customise any file |
@@ -108,13 +108,25 @@ app/Generated/
     PetStatus.php        # BackedEnum
   Http/
     Controllers/
-      PetController.php      # Resource controller stub (index/show/store/update/destroy)
+      PetController.php      # Controller stub (index/show/store/update/destroy) — Laravel 12+, no base class
     Requests/
       NewPetRequest.php      # FormRequest with validation rules
     Resources/
       PetResource.php        # JsonResource
   routes/
-    api.php              # Route::apiResource stubs
+    api.php              # Route::get/post/… stubs with use imports
+```
+
+`routes/api.php` example:
+
+```php
+use Illuminate\Support\Facades\Route;
+use App\Generated\Http\Controllers\PetController;
+
+// GET /pets → PetController@index
+Route::get('/pets', [PetController::class, 'index']);
+// POST /pets → PetController@store
+Route::post('/pets', [PetController::class, 'store']);
 ```
 
 ---
@@ -189,7 +201,7 @@ properties are emitted.
 | Version | Effect |
 |---------|--------|
 | `8.1` (default) | Each property is annotated with `public readonly` individually |
-| `8.2` or `8.3` | The class declaration becomes `readonly final class`, removing per-property `readonly` |
+| `8.2`, `8.3`, `8.4` | The class declaration becomes `readonly final class`, removing per-property `readonly` |
 
 **PHP 8.1 output (default):**
 
@@ -236,7 +248,7 @@ path = "openapi/api.yaml"
 output    = "app/Generated"
 namespace = "App\\Generated"
 framework = "laravel"        # plain | laravel | symfony (WIP)
-php_version = "8.2"          # 8.1 | 8.2 | 8.3
+php_version = "8.2"          # 8.1 | 8.2 | 8.3 | 8.4
 ```
 
 CLI flags always override the config file. Options precedence:  
@@ -259,7 +271,7 @@ Options for `generate`:
   -n, --namespace <NS>       PHP namespace     [default: App\Generated]
   -m, --mode <MODE>          models | client | all  [default: all]
       --framework <FW>       plain | laravel | symfony
-      --php-version <VER>    8.1 | 8.2 | 8.3
+      --php-version <VER>    8.1 | 8.2 | 8.3 | 8.4
       --templates <DIR>      Directory of Jinja2 template overrides
       --dry-run              Print files without writing
       --diff                 Exit 1 if output differs from disk

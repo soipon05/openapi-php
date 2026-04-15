@@ -998,9 +998,15 @@ fn query_params_use_array_filter_to_skip_nulls() {
         client.contains("array_filter([") && client.contains("], fn($v) => $v !== null)"),
         "Query params must be filtered through array_filter to drop nulls:\n{client}"
     );
+    // L1: use !empty() instead of !== []
     assert!(
-        client.contains("$queryParams !== [] ? '?' . http_build_query($queryParams) : ''"),
-        "Query string must be omitted when all params are null:\n{client}"
+        client.contains("!empty($queryParams) ? '?' . http_build_query($queryParams) : ''"),
+        "Query string must use !empty() check:\n{client}"
+    );
+    // L2: bool false must not produce empty query string — cast via array_map/is_bool
+    assert!(
+        client.contains("array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams)"),
+        "Bool query params must be cast to 'true'/'false' strings:\n{client}"
     );
     assert!(
         !client.contains("'?' . http_build_query(["),
@@ -1173,5 +1179,34 @@ fn all_required_query_params_skip_array_filter() {
     assert!(
         list_pets.has_query_params,
         "listPets has query params"
+    );
+}
+
+// ─── L2: bool false query params must not produce empty string ────────────────
+
+/// `http_build_query(['active' => false])` produces `active=` (empty string), not
+/// `active=false`. The generated client must cast bool params through `is_bool` so
+/// that `false` becomes the string `'false'` (and `true` becomes `'true'`).
+#[test]
+fn bool_query_params_are_cast_to_true_false_strings() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
+
+    // Optional path must have the is_bool cast (after array_filter)
+    assert!(
+        client.contains("array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams)"),
+        "Optional-param path must cast booleans to 'true'/'false':\n{client}"
+    );
+    // !empty() used instead of !== [] (L1)
+    assert!(
+        client.contains("!empty($queryParams)"),
+        "Must use !empty() to check for non-empty query params:\n{client}"
     );
 }
