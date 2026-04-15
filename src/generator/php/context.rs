@@ -132,6 +132,8 @@ pub struct EndpointCtx {
     /// Model class name for `Name::fromArray(...)` return
     pub return_ref: Option<String>,
     pub return_array: bool,
+    /// Model class name when the response is `list<Name>` — drives `array_map` + `@return list<T>`
+    pub return_array_of: Option<String>,
     pub error_cases: Vec<ErrorCaseCtx>,
 }
 
@@ -621,10 +623,11 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 })
                 .collect();
 
-            let (return_void, return_ref, return_array) = match &rk {
-                ReturnKind::Void => (true, None, false),
-                ReturnKind::Ref(n) => (false, Some(n.clone()), false),
-                ReturnKind::Array => (false, None, true),
+            let (return_void, return_ref, return_array, return_array_of) = match &rk {
+                ReturnKind::Void => (true, None, false, None),
+                ReturnKind::Ref(n) => (false, Some(n.clone()), false, None),
+                ReturnKind::Array => (false, None, true, None),
+                ReturnKind::ArrayOf(n) => (false, None, false, Some(n.clone())),
             };
 
             let operation_pascal = sanitize_php_ident(&to_pascal_case(&ep.operation_id));
@@ -692,6 +695,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
                 return_void,
                 return_ref,
                 return_array,
+                return_array_of,
                 error_cases,
             }
         })

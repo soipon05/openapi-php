@@ -39,6 +39,10 @@ final class ApiClient
      * {{ ep.summary }}
      *
 {% endif %}
+{% if ep.return_array_of %}
+     * @return list<{{ ep.return_array_of }}>
+     *
+{% endif %}
      * @throws \Psr\Http\Client\ClientExceptionInterface
 {% for ec in ep.error_cases %}
      * @throws \{{ namespace }}\Exceptions\{{ ec.exception_class }}
@@ -130,6 +134,10 @@ final class ApiClient
 {% endif %}
 {% if ep.return_ref %}
         return {{ ep.return_ref }}::fromArray($this->decodeJson($response));
+{% elif ep.return_array_of %}
+        /** @var list<array<string, mixed>> $items */
+        $items = $this->decodeJson($response);
+        return array_map(fn(array $item) => {{ ep.return_array_of }}::fromArray($item), $items);
 {% elif ep.return_array %}
         return $this->decodeJson($response);
 {% endif %}

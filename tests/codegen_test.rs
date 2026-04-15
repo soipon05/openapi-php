@@ -1210,3 +1210,62 @@ fn bool_query_params_are_cast_to_true_false_strings() {
         "Must use !empty() to check for non-empty query params:\n{client}"
     );
 }
+
+// ─── list<T> return type for array-of-DTO endpoints ───────────────────────────
+
+/// Endpoints that return an array of a named DTO must emit `@return list<T>` PHPDoc
+/// and use `array_map(fn($item) => T::fromArray($item), ...)` in the body.
+/// This enables IDE and AI completion on the returned objects (e.g. `$pets[0]->`).
+#[test]
+fn array_of_dto_response_emits_list_phpdoc_and_array_map() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
+
+    // listPets returns Pet[] in petstore.yaml → must emit list<Pet>
+    assert!(
+        client.contains("@return list<Pet>"),
+        "Array-of-DTO response must have @return list<Pet> PHPDoc:\n{client}"
+    );
+    // Return body must map each item through Pet::fromArray
+    assert!(
+        client.contains("array_map(fn(array $item) => Pet::fromArray($item), $items)"),
+        "Array-of-DTO response must use array_map with fromArray:\n{client}"
+    );
+    // Raw decodeJson must not be returned directly for typed arrays
+    assert!(
+        !client.contains("return $this->decodeJson($response);\n    }\n\n    /**\n     * List all pets"),
+        "listPets must not return raw decodeJson result"
+    );
+}
+
+/// Endpoints that return a single DTO (not array) must still use the existing
+/// `Name::fromArray($this->decodeJson($response))` path and must NOT emit list<T>.
+#[test]
+fn single_dto_response_does_not_emit_list_phpdoc() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+    };
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let files = backend.run_dry(&ctx).unwrap();
+    let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
+
+    // getPetById returns a single Pet (not array) → must use Ref path
+    assert!(
+        client.contains("Pet::fromArray($this->decodeJson($response))"),
+        "Single-DTO response must use Name::fromArray(decodeJson):\n{client}"
+    );
+    assert!(
+        !client.contains("@return list<Error>"),
+        "Error response DTO must not be emitted as list<T>:\n{client}"
+    );
+}

@@ -246,7 +246,10 @@ pub fn build_path_expr(path: &str, path_params: &[ResolvedParam]) -> String {
 pub enum ReturnKind {
     Void,
     Ref(String),
+    /// Array of an untyped/primitive value (e.g. `array<string, mixed>`).
     Array,
+    /// Array of a named DTO — response is `list<T>` that must be mapped via `T::fromArray`.
+    ArrayOf(String),
 }
 
 pub fn resolve_return(response: &Option<ResolvedSchema>) -> (String, ReturnKind) {
@@ -255,6 +258,14 @@ pub fn resolve_return(response: &Option<ResolvedSchema>) -> (String, ReturnKind)
         Some(ResolvedSchema::Ref(name)) => {
             let safe = sanitize_php_ident(name);
             (safe.clone(), ReturnKind::Ref(safe))
+        }
+        Some(ResolvedSchema::Array(arr)) => {
+            if let ResolvedSchema::Ref(name) = arr.items.as_ref() {
+                let safe = sanitize_php_ident(name);
+                ("array".to_string(), ReturnKind::ArrayOf(safe))
+            } else {
+                ("array".to_string(), ReturnKind::Array)
+            }
         }
         Some(schema) => {
             let php_type = schema_to_php_type(schema, false);
