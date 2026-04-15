@@ -17,6 +17,7 @@ use minijinja::{Environment, Value};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
+use super::helpers::{sanitize_php_ident, sanitize_php_string_literal, sanitize_phpdoc};
 use super::templates::add_template_with_override;
 
 // ─── Context structs ──────────────────────────────────────────────────────────
@@ -289,7 +290,7 @@ fn build_form_request_ctx(
                     .join(", ")
             );
             FormRequestFieldCtx {
-                name: prop_name.clone(),
+                name: sanitize_php_string_literal(prop_name),
                 rules_str,
             }
         })
@@ -337,8 +338,9 @@ fn derive_validation_rules(
                     _ => {}
                 }
                 if let Some(pat) = &p.pattern {
-                    // Escape forward slashes; Laravel uses / as regex delimiter
-                    let escaped = pat.replace('/', "\\/");
+                    // Sanitize first (removes ' and \), then escape forward slashes
+                    let safe = sanitize_php_string_literal(pat);
+                    let escaped = safe.replace('/', "\\/");
                     rules.push(format!("regex:/{escaped}/"));
                 }
             }
@@ -398,7 +400,7 @@ fn build_resource_ctx(
             let nullable = !prop.required || prop.nullable;
             let expr = resource_field_expr(&camel, &prop.schema, nullable, schemas);
             ResourceFieldCtx {
-                key: prop_name.clone(),
+                key: sanitize_php_string_literal(prop_name),
                 expr,
             }
         })
@@ -473,15 +475,17 @@ fn build_routes_ctx(spec: &ResolvedSpec, namespace: &str) -> RoutesCtx {
             }
 
             let action = derive_action(&ep.method, &ep.path_params);
+            let safe_path = sanitize_php_string_literal(&path);
+            // comment は改行を除去（// コメント内への改行インジェクション防止）
             let comment = format!(
                 "{} {} → {controller_short}@{action}",
                 ep.method.as_str(),
-                path,
+                path.replace(['\r', '\n'], ""),
             );
 
             RouteCtx {
                 method,
-                path,
+                path: safe_path,
                 controller_short,
                 action,
                 comment,
@@ -540,7 +544,7 @@ fn build_controller_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Controller
                 .unwrap_or("api")
                 .to_string()
         });
-        let name = to_pascal_case(&singularize(&tag));
+        let name = sanitize_php_ident(&to_pascal_case(&singularize(&tag)));
         groups.entry(name).or_default().push(ep);
     }
 
@@ -598,7 +602,7 @@ fn build_controller_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Controller
 
                 methods.push(ControllerMethodCtx {
                     action,
-                    summary: ep.summary.clone(),
+                    summary: ep.summary.as_deref().map(sanitize_phpdoc),
                     params_str: params_parts.join(", "),
                     phpdoc_return: format!("@return {return_type}"),
                     return_type,

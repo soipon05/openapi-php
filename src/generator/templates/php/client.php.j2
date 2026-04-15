@@ -27,6 +27,7 @@ final class {{ class_name }}
 {% if needs_stream_factory %}
         private readonly StreamFactoryInterface $streamFactory,
 {% endif %}
+        /** @warning Set only from trusted config. Do not pass external user input — SSRF risk. */
         private readonly string $baseUrl = self::BASE_URL,
     ) {}
 {% for ep in endpoints %}

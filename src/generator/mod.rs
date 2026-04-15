@@ -110,11 +110,19 @@ pub fn run_dry_filtered(
         split_by_tag,
     };
     let files = backend.render(&ctx)?;
-    Ok(files
-        .into_iter()
-        .map(|f| (f.rel_path, f.content))
-        .filter(|(p, _)| backend.filter_by_mode(p, mode))
-        .collect())
+    let mut result = BTreeMap::new();
+    for file in files {
+        if backend.filter_by_mode(&file.rel_path, mode) {
+            if path_escapes_base(&file.rel_path) {
+                bail!(
+                    "Generated file path escapes output directory: {}",
+                    file.rel_path.display()
+                );
+            }
+            result.insert(file.rel_path, file.content);
+        }
+    }
+    Ok(result)
 }
 
 /// Print every would-be file to stdout with a separator header, then a summary.
