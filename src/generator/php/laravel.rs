@@ -439,11 +439,9 @@ fn build_routes_ctx(spec: &ResolvedSpec, namespace: &str) -> RoutesCtx {
 
             let action = derive_action(&ep.method, &ep.path_params);
             let comment = format!(
-                "{} {} → \\{}@{}",
+                "{} {} → {controller_base}Controller@{action}",
                 ep.method.as_str(),
                 path,
-                controller,
-                action
             );
 
             RouteCtx {
