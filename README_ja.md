@@ -20,6 +20,9 @@ openapi-php generate --input openapi.yaml --framework laravel
 - [インストール](#インストール)
 - [クイックスタート](#クイックスタート)
 - [生成コードの詳細](#生成コードの詳細)
+  - [タグ別分割（Split by Tag）](#タグ別分割split-by-tag)
+  - [認証なし PSR-18 クライアント](#認証なし-psr-18-クライアント)
+  - [OpenAPI 3.1 nullable 型](#openapi-31-nullable-型)
   - [判別共用体型（Discriminated Union）](#判別共用体型discriminated-union)
   - [PHP バージョンと readonly](#php-バージョンと-readonly)
 - [設定ファイル](#設定ファイル)
@@ -36,8 +39,15 @@ openapi-php generate --input openapi.yaml --framework laravel
 |---|---|
 | 高速 | Rust 製。数千ファイルを1秒未満で生成 |
 | 正確 | `$ref` 解決・`allOf` マージ・nullable・enum を完全サポート |
+| OpenAPI 3.0 & 3.1 | `nullable: true`（OAS 3.0）と `type: ["string", "null"]`（OAS 3.1）の両スタイルに対応。どちらも `?T` を生成 |
 | PHP 8.1 〜 8.4 | readonly DTO・`BackedEnum`・union type |
 | フレームワーク対応 | `plain`（依存ゼロ）・`laravel`（FormRequest / JsonResource / Controller スタブ / routes stub — Laravel 12+ 対象）・`symfony`（WIP、plain にフォールバック） |
+| タグ別分割 | `--split-by-tag` で OpenAPI タグごとに `{Tag}Client.php` を分割生成（デフォルトは `ApiClient.php` に集約） |
+| 認証なし PSR-18 クライアント | Bearer/ApiKey の注入なし。認証は呼び出し側が PSR-18 ミドルウェアとして実装して注入 |
+| PHPStan 型エイリアス | DTO に `@phpstan-type PetData array{…}` を自動生成 — PHPStan strict モード対応 |
+| Enum ラベル | `x-enum-descriptions` ベンダー拡張から `label(): string` メソッドを生成 |
+| 非推奨プロパティ | OpenAPI `deprecated: true` のプロパティに `#[\Deprecated]` 属性を付与 |
+| FormRequest ルール | `minLength`/`maxLength`/`pattern`/`minimum`/`maximum` から Laravel バリデーションルールを自動導出 |
 | 差分モード | `--diff` で生成物とディスクの差異があると終了コード 1（CI ゲートに活用） |
 | ウォッチモード | `--watch` でスペック変更を検知して自動再生成 |
 | テンプレート上書き | `--templates` に Jinja2 テンプレートを置くだけでカスタマイズ |
@@ -132,6 +142,71 @@ Route::post('/pets', [PetController::class, 'store']);
 ---
 
 ## 生成コードの詳細
+
+### タグ別分割（Split by Tag）
+
+デフォルトでは全エンドポイントが `Client/ApiClient.php` 1 ファイルにまとめられます。  
+`--split-by-tag` を指定すると、OpenAPI タグごとに独立したクライアントファイルを生成します:
+
+```bash
+openapi-php generate --input openapi.yaml --split-by-tag
+```
+
+**出力例（petstore — タグ: `pets`・`store`）:**
+
+```
+Client/
+  PetsClient.php    ← tag: pets のエンドポイントだけ
+  StoreClient.php   ← tag: store のエンドポイントだけ
+```
+
+タグなしのエンドポイントは `DefaultClient.php` にまとめられます。
+
+`openapi-php.toml` でも設定できます:
+
+```toml
+[generator]
+split_by_tag = true
+```
+
+---
+
+### 認証なし PSR-18 クライアント
+
+生成される `ApiClient.php` / `{Tag}Client.php` は Bearer トークンや API キーを一切注入しません。  
+認証はアプリ側で PSR-18 ミドルウェアとして実装し、`ClientInterface` として注入してください:
+
+```php
+// 認証を PSR-18 ミドルウェアで実装（Guzzle HandlerStack の例）
+$stack = HandlerStack::create();
+$stack->push(new BearerAuthMiddleware($token));
+$psr18 = new GuzzleAdapter(new GuzzleClient(['handler' => $stack]));
+
+$client = new ApiClient(
+    httpClient: $psr18,
+    requestFactory: new Psr17Factory(),
+    streamFactory: new Psr17Factory(),
+);
+```
+
+---
+
+### OpenAPI 3.1 nullable 型
+
+2 種類の nullable 表記をどちらもサポートし、どちらも PHP では `?T` を生成します:
+
+```yaml
+# OpenAPI 3.1 スタイル
+description:
+  type: ["string", "null"]
+
+# OpenAPI 3.0 スタイル（引き続き動作）
+description:
+  type: string
+  nullable: true
+```
+
+---
 
 ### 判別共用体型（Discriminated Union）
 
@@ -239,10 +314,11 @@ php_version = "8.2"
 path = "openapi/api.yaml"
 
 [generator]
-output    = "app/Generated"
-namespace = "App\\Generated"
-framework = "laravel"        # plain | laravel | symfony (WIP)
-php_version = "8.2"          # 8.1 | 8.2 | 8.3 | 8.4
+output       = "app/Generated"
+namespace    = "App\\Generated"
+framework    = "laravel"        # plain | laravel | symfony (WIP)
+php_version  = "8.2"           # 8.1 | 8.2 | 8.3 | 8.4
+split_by_tag = true            # タグごとに {Tag}Client.php を分割生成
 ```
 
 優先順位: **CLI フラグ > openapi-php.toml > 組み込みデフォルト**
@@ -268,6 +344,7 @@ generate のオプション:
       --framework <FW>       plain | laravel | symfony
       --php-version <VER>    8.1 | 8.2 | 8.3 | 8.4
       --templates <DIR>      Jinja2 テンプレート上書きディレクトリ
+      --split-by-tag         OpenAPI タグごとに {Tag}Client.php を分割生成
       --dry-run              書き込まずにファイルをプレビュー
       --diff                 ディスクと異なれば終了コード 1
       --watch                スペック変更を検知して自動再生成
@@ -358,10 +435,11 @@ openapi-php generate \
 
 [`examples/`](examples/) ディレクトリにサンプル OpenAPI スペックと生成済み PHP ファイルをコミット済みです。ツールを実行しなくても生成物を確認できます。
 
-| サンプル | スペック | plain 出力 | Laravel 出力 |
-|---|---|---|---|
-| simple | [openapi.yaml](examples/simple/openapi.yaml) | [output/](examples/simple/output/) | [output-laravel/](examples/simple/output-laravel/) |
-| petstore | [openapi.yaml](examples/petstore/openapi.yaml) | [output/](examples/petstore/output/) | [output-laravel/](examples/petstore/output-laravel/) |
+| サンプル | スペック | plain 出力 | Laravel 出力 | split 出力 |
+|---|---|---|---|---|
+| simple | [openapi.yaml](examples/simple/openapi.yaml) | [output/](examples/simple/output/) | [output-laravel/](examples/simple/output-laravel/) | — |
+| petstore | [openapi.yaml](examples/petstore/openapi.yaml) | [output/](examples/petstore/output/) | [output-laravel/](examples/petstore/output-laravel/) | [output-split/](examples/petstore/output-split/) |
+| discriminated-union | [openapi.yaml](examples/discriminated-union/openapi.yaml) | [output/](examples/discriminated-union/output/) | [output-laravel/](examples/discriminated-union/output-laravel/) | — |
 
 ---
 

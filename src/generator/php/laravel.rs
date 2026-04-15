@@ -318,6 +318,8 @@ fn derive_validation_rules(
                 return vec!["nullable".to_string(), "array".to_string()];
             }
         }
+        // Primitive, Array, Enum, Union → fall through to the type-specific rule
+        // generation below; no early return needed.
         _ => {}
     }
 
@@ -335,6 +337,7 @@ fn derive_validation_rules(
                     (Some(min), None) => rules.push(format!("min:{min}")),
                     (None, Some(max)) => rules.push(format!("max:{max}")),
                     (None, None) if required => rules.push("max:255".to_string()),
+                    // (None, None) and not required → no length constraint to add
                     _ => {}
                 }
                 if let Some(pat) = &p.pattern {

@@ -1,3 +1,10 @@
+//! Template loading with user-override support.
+//!
+//! Built-in Jinja2 templates are embedded at compile time via `include_str!`.
+//! [`add_template_with_override`] checks for a same-named file under the optional
+//! `--templates` directory first; if found, the file on disk takes precedence over
+//! the built-in, allowing users to customise output without forking the generator.
+
 use anyhow::{Context, Result};
 use minijinja::Environment;
 use std::path::Path;

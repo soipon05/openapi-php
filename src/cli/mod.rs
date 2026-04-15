@@ -1,3 +1,17 @@
+//! CLI entry point: argument definitions and top-level orchestration.
+//!
+//! [`Args`] is the clap root struct. `Args::run()` dispatches to either the
+//! `validate` subcommand (parse-only check) or the `generate` subcommand, which
+//! loads config, merges CLI overrides, and drives the parser → generator pipeline.
+//!
+//! The `generate` subcommand supports three execution modes:
+//! - normal write to disk
+//! - `--dry-run` (print to stdout, no files written)
+//! - `--diff` (compare generated output to existing files; exits 1 if changed)
+//!
+//! `--watch` wraps the normal-write path with a filesystem watcher (debounced 300 ms).
+//! `--inputs` / `--namespace-prefix` enable zero-config multi-spec generation.
+
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};

@@ -1,3 +1,9 @@
+//! Configuration loading and merging.
+//!
+//! Config is sourced from `openapi-php.toml` (searched upward from CWD until the
+//! git repo root or the home directory), then overridden by CLI flags via
+//! [`Config::merge_cli`]. CLI always wins over the file.
+
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
