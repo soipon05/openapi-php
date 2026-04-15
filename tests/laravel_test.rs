@@ -22,6 +22,7 @@ fn laravel_generates_form_requests() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -54,6 +55,7 @@ fn laravel_generates_resources() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -85,6 +87,7 @@ fn laravel_generates_routes() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -119,6 +122,7 @@ fn laravel_still_generates_models() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -152,6 +156,7 @@ fn laravel_generates_controller_file() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -171,6 +176,7 @@ fn laravel_controller_has_correct_namespace_and_class() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
@@ -198,6 +204,7 @@ fn laravel_controller_has_index_and_destroy_returning_json_response() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
@@ -223,6 +230,7 @@ fn laravel_controller_has_show_with_resource_return() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
@@ -244,6 +252,7 @@ fn laravel_controller_store_has_form_request_param() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
@@ -266,6 +275,7 @@ fn laravel_controller_has_phpdoc_comments() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
@@ -288,6 +298,7 @@ fn laravel_petstore_controller_has_all_crud_methods() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App",
+        split_by_tag: false,
     };
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("Http/Controllers/PetController.php")];
@@ -310,6 +321,7 @@ fn laravel_controller_does_not_extend_base_controller() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("Http/Controllers/ItemController.php")];
@@ -334,6 +346,7 @@ fn laravel_routes_use_provided_namespace() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "MyCompany\\Api",
+        split_by_tag: false,
     };
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("routes/api.php")];
@@ -368,6 +381,7 @@ fn laravel_routes_deduplicate_controller_imports() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Api",
+        split_by_tag: false,
     };
     let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let content = &files[&PathBuf::from("routes/api.php")];

@@ -41,6 +41,7 @@ fn bench_full_pipeline(c: &mut Criterion) {
                     &Framework::Plain,
                     None,
                     &PhpVersion::Php82,
+                    false,
                 )
                 .unwrap();
             });
@@ -61,6 +62,7 @@ fn bench_full_pipeline(c: &mut Criterion) {
                     &Framework::Laravel,
                     None,
                     &PhpVersion::Php82,
+                    false,
                 )
                 .unwrap();
             });

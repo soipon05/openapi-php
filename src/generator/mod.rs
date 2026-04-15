@@ -46,6 +46,9 @@ fn make_backend(
 ///
 /// Note: `run_dry_filtered` does not write files and therefore does not apply
 /// the path-traversal guard.
+// 8 args: inheriting pre-existing 7-arg signature plus `split_by_tag`;
+// grouping into a struct would be a larger refactor left for a follow-up.
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     spec: &ResolvedSpec,
     output: &Path,
@@ -54,6 +57,7 @@ pub fn run(
     framework: Framework,
     templates_dir: Option<&Path>,
     php_version: &PhpVersion,
+    split_by_tag: bool,
 ) -> Result<()> {
     std::fs::create_dir_all(output)?;
 
@@ -62,6 +66,7 @@ pub fn run(
         spec,
         namespace,
         php_version,
+        split_by_tag,
     };
     let files = backend.render(&ctx)?;
 
@@ -95,12 +100,14 @@ pub fn run_dry_filtered(
     framework: &Framework,
     templates_dir: Option<&Path>,
     php_version: &PhpVersion,
+    split_by_tag: bool,
 ) -> Result<BTreeMap<PathBuf, String>> {
     let backend = make_backend(framework, templates_dir)?;
     let ctx = CodegenContext {
         spec,
         namespace,
         php_version,
+        split_by_tag,
     };
     let files = backend.render(&ctx)?;
     Ok(files
@@ -119,6 +126,7 @@ pub fn run_dry_print(
     framework: Framework,
     templates_dir: Option<&Path>,
     php_version: &PhpVersion,
+    split_by_tag: bool,
 ) -> Result<()> {
     let files = run_dry_filtered(
         spec,
@@ -127,6 +135,7 @@ pub fn run_dry_print(
         &framework,
         templates_dir,
         php_version,
+        split_by_tag,
     )?;
     let count = files.len();
     for (path, content) in &files {
@@ -140,6 +149,8 @@ pub fn run_dry_print(
 /// Compare generated files against existing files on disk and print a colored
 /// unified diff.  Returns `true` when at least one file differs (caller should
 /// exit with code 1 for CI use).  No files are written.
+// 8 args: same reason as `run` above.
+#[allow(clippy::too_many_arguments)]
 pub fn run_diff(
     spec: &ResolvedSpec,
     output: &Path,
@@ -148,6 +159,7 @@ pub fn run_diff(
     framework: Framework,
     templates_dir: Option<&Path>,
     php_version: &PhpVersion,
+    split_by_tag: bool,
 ) -> Result<bool> {
     let files = run_dry_filtered(
         spec,
@@ -156,6 +168,7 @@ pub fn run_diff(
         &framework,
         templates_dir,
         php_version,
+        split_by_tag,
     )?;
     let total = files.len();
     let mut changed = 0usize;

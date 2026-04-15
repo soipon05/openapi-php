@@ -27,6 +27,7 @@ fn run_dry_simple_returns_expected_paths() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -45,6 +46,7 @@ fn run_dry_petstore_returns_all_models() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -64,6 +66,7 @@ fn model_has_declare_strict_and_namespace() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
@@ -80,6 +83,7 @@ fn model_has_from_array_and_to_array() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
@@ -97,6 +101,7 @@ fn model_datetime_uses_date_time_immutable() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
@@ -122,6 +127,7 @@ fn enum_has_backed_type_and_cases() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let status = files[&PathBuf::from("Models/ItemStatus.php")].as_str();
@@ -139,6 +145,7 @@ fn client_has_psr18_constructor() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
@@ -157,6 +164,7 @@ fn client_has_assert_successful_and_decode_json() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
@@ -179,6 +187,7 @@ fn client_throws_docblock() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Generated",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
@@ -200,6 +209,7 @@ fn dry_run_models_mode_excludes_client_files() {
         &Framework::Plain,
         None,
         &PhpVersion::Php82,
+        false,
     )
     .unwrap();
 
@@ -225,6 +235,7 @@ fn dry_run_all_files_start_with_php_open_tag() {
         &Framework::Plain,
         None,
         &PhpVersion::Php82,
+        false,
     )
     .unwrap();
 
@@ -247,6 +258,7 @@ fn php82_uses_readonly_class() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -269,6 +281,7 @@ fn php81_uses_per_property_readonly() {
         php_version: &PhpVersion::Php81,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -330,6 +343,7 @@ fn primitive_ref_schema_generates_no_model_file() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -356,6 +370,7 @@ fn primitive_ref_property_is_inlined_as_native_php_type() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -383,6 +398,7 @@ fn primitive_ref_in_request_body_and_response_is_inlined() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -405,6 +421,7 @@ fn primitive_format_appears_in_phpdoc() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -434,6 +451,7 @@ fn generated_php_is_free_of_injection_chars() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -471,10 +489,10 @@ fn generated_php_is_free_of_injection_chars() {
 
 #[test]
 fn injection_spec_fn_name_is_valid_php_identifier() {
-    use openapi_php::generator::php::context::build_client_ctx;
+    use openapi_php::generator::php::context::{TagFilter, build_client_ctx};
 
     let spec = parser::load_and_resolve(&fixture("injection_spec.yaml")).unwrap();
-    let ctx = build_client_ctx(&spec, "App\\Test");
+    let ctx = build_client_ctx(&spec, "App\\Test", TagFilter::All);
 
     for ep in &ctx.endpoints {
         // fn_name must only contain [A-Za-z0-9_]
@@ -496,10 +514,10 @@ fn injection_spec_fn_name_is_valid_php_identifier() {
 
 #[test]
 fn injection_spec_phpdoc_has_no_comment_close() {
-    use openapi_php::generator::php::context::build_client_ctx;
+    use openapi_php::generator::php::context::{TagFilter, build_client_ctx};
 
     let spec = parser::load_and_resolve(&fixture("injection_spec.yaml")).unwrap();
-    let ctx = build_client_ctx(&spec, "App\\Test");
+    let ctx = build_client_ctx(&spec, "App\\Test", TagFilter::All);
 
     // title and summary must not contain */ (would close a block comment)
     assert!(
@@ -520,10 +538,10 @@ fn injection_spec_phpdoc_has_no_comment_close() {
 
 #[test]
 fn injection_spec_base_url_has_no_single_quote() {
-    use openapi_php::generator::php::context::build_client_ctx;
+    use openapi_php::generator::php::context::{TagFilter, build_client_ctx};
 
     let spec = parser::load_and_resolve(&fixture("injection_spec.yaml")).unwrap();
-    let ctx = build_client_ctx(&spec, "App\\Test");
+    let ctx = build_client_ctx(&spec, "App\\Test", TagFilter::All);
 
     assert!(
         !ctx.base_url.contains('\'') && !ctx.base_url.contains('\n'),
@@ -559,6 +577,7 @@ fn generator_rejects_path_traversal_in_rel_path() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = TraversalBackend(PlainPhpBackend::new(None).unwrap());
 
@@ -618,6 +637,7 @@ fn phpstan_from_array_emits_array_shape() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -646,6 +666,7 @@ fn phpstan_to_array_emits_array_shape() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -670,6 +691,7 @@ fn phpstan_from_shape_required_vs_optional() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -701,6 +723,7 @@ fn phpstan_to_shape_values_are_non_null() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -739,6 +762,7 @@ fn phpstan_shape_dto_array_emits_list_of_array() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -765,6 +789,7 @@ fn phpstan_shape_primitive_array_emits_list_of_primitive() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -792,6 +817,7 @@ fn phpstan_shape_enum_array_emits_list_of_backing_type() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -822,6 +848,7 @@ fn nullable_dto_array_to_array_has_null_guard() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -850,6 +877,7 @@ fn enum_array_to_array_uses_value_not_to_array() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -876,6 +904,7 @@ fn api_client_imports_request_body_dto() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -897,6 +926,7 @@ fn phpstan_shape_single_enum_ref_uses_backing_type() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -924,6 +954,7 @@ fn query_params_use_array_filter_to_skip_nulls() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -960,6 +991,7 @@ fn from_array_emits_throws_when_datetime_prop_present() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -978,6 +1010,7 @@ fn from_array_no_throws_when_no_datetime_prop() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -1018,6 +1051,7 @@ fn from_array_throws_date_malformed_on_php83() {
         php_version: &PhpVersion::Php83,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -1036,6 +1070,7 @@ fn from_array_throws_exception_on_php82() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -1060,6 +1095,7 @@ fn from_array_has_return_self_annotation() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -1088,6 +1124,7 @@ fn optional_query_params_use_array_filter() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -1102,10 +1139,10 @@ fn optional_query_params_use_array_filter() {
 /// When all query params are required, array_filter is unnecessary overhead.
 #[test]
 fn all_required_query_params_skip_array_filter() {
-    use openapi_php::generator::php::context::build_client_ctx;
+    use openapi_php::generator::php::context::{TagFilter, build_client_ctx};
 
     let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
-    let ctx = build_client_ctx(&spec, "App\\Test");
+    let ctx = build_client_ctx(&spec, "App\\Test", TagFilter::All);
 
     // listPets has optional params → has_optional_query_params = true
     let list_pets = ctx
@@ -1132,6 +1169,7 @@ fn bool_query_params_are_cast_to_true_false_strings() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -1163,6 +1201,7 @@ fn array_of_dto_response_emits_list_phpdoc_and_array_map() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -1196,6 +1235,7 @@ fn single_dto_response_does_not_emit_list_phpdoc() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -1221,6 +1261,7 @@ fn model_emits_phpstan_type_alias_in_class_docblock() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
@@ -1251,6 +1292,7 @@ fn enum_with_x_enum_descriptions_emits_label_method() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let status = files[&PathBuf::from("Models/PetStatus.php")].as_str();
@@ -1277,6 +1319,7 @@ fn enum_without_x_enum_descriptions_has_no_label_method() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let status = files[&PathBuf::from("Models/ItemStatus.php")].as_str();
@@ -1284,6 +1327,70 @@ fn enum_without_x_enum_descriptions_has_no_label_method() {
     assert!(
         !status.contains("label()"),
         "Enum without x-enum-descriptions must not emit label():\n{status}"
+    );
+}
+
+// ─── split_by_tag tests ───────────────────────────────────────────────────────
+
+#[test]
+fn split_by_tag_generates_per_tag_clients() {
+    // petstore.yaml has "pets" tagged endpoints
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let ctx = CodegenContext {
+        spec: &spec,
+        namespace: "App",
+        php_version: &PhpVersion::Php82,
+        split_by_tag: true,
+    };
+    let files = backend.run_dry(&ctx).unwrap();
+
+    // "pets" tag exists → Client/PetsClient.php should be generated
+    let pets_path = PathBuf::from("Client/PetsClient.php");
+    assert!(
+        files.contains_key(&pets_path),
+        "PetsClient.php should be generated when split_by_tag=true"
+    );
+
+    // ApiClient.php must NOT be generated
+    let api_path = PathBuf::from("Client/ApiClient.php");
+    assert!(
+        !files.contains_key(&api_path),
+        "ApiClient.php should not be generated when split_by_tag=true"
+    );
+
+    // PetsClient.php should contain the correct class name and at least one pets endpoint
+    let content = &files[&pets_path];
+    assert!(
+        content.contains("class PetsClient"),
+        "class name should be PetsClient:\n{content}"
+    );
+    assert!(
+        content.contains("listPets") || content.contains("getPetById"),
+        "PetsClient should contain pets endpoints:\n{content}"
+    );
+}
+
+#[test]
+fn split_by_tag_false_generates_single_api_client() {
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let backend = PlainPhpBackend::new(None).unwrap();
+    let ctx = CodegenContext {
+        spec: &spec,
+        namespace: "App",
+        php_version: &PhpVersion::Php82,
+        split_by_tag: false,
+    };
+    let files = backend.run_dry(&ctx).unwrap();
+
+    let api_path = PathBuf::from("Client/ApiClient.php");
+    assert!(
+        files.contains_key(&api_path),
+        "ApiClient.php should be generated when split_by_tag=false"
+    );
+    assert!(
+        files[&api_path].contains("class ApiClient"),
+        "class name should be ApiClient"
     );
 }
 
@@ -1297,6 +1404,7 @@ fn openapi31_nullable_generates_correct_php_type() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let item_php = files[&PathBuf::from("Models/Item.php")].as_str();

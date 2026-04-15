@@ -16,6 +16,7 @@ pub struct CodegenContext<'a> {
     pub spec: &'a ResolvedSpec,
     pub namespace: &'a str,
     pub php_version: &'a PhpVersion,
+    pub split_by_tag: bool,
 }
 
 pub struct RenderedFile {

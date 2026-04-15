@@ -31,6 +31,7 @@ pub struct Config {
     pub php_version: PhpVersion,
     pub templates: Option<PathBuf>,
     pub input: Option<PathBuf>,
+    pub split_by_tag: bool,
 }
 
 impl Default for Config {
@@ -42,6 +43,7 @@ impl Default for Config {
             php_version: PhpVersion::default(),
             templates: None,
             input: None,
+            split_by_tag: false,
         }
     }
 }
@@ -55,6 +57,7 @@ pub struct CliOverrides {
     pub php_version: Option<PhpVersion>,
     pub templates: Option<PathBuf>,
     pub input: Option<PathBuf>,
+    pub split_by_tag: Option<bool>,
 }
 
 // ─── Raw TOML deserialization ──────────────────────────────────────────────
@@ -74,6 +77,7 @@ struct RawGenerator {
     framework: Option<String>,
     php_version: Option<String>,
     templates: Option<String>,
+    split_by_tag: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -128,6 +132,7 @@ impl Config {
             php_version,
             templates: raw.generator.templates.map(PathBuf::from),
             input: raw.input.path.map(PathBuf::from),
+            split_by_tag: raw.generator.split_by_tag.unwrap_or(false),
         })
     }
 
@@ -140,6 +145,7 @@ impl Config {
             php_version: cli.php_version.unwrap_or(self.php_version),
             templates: cli.templates.or(self.templates),
             input: cli.input.or(self.input),
+            split_by_tag: cli.split_by_tag.unwrap_or(self.split_by_tag),
         }
     }
 

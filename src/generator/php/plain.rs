@@ -10,7 +10,8 @@ use minijinja::{Environment, Value};
 use std::path::{Path, PathBuf};
 
 use super::context::{
-    build_client_ctx, build_enum_ctx, build_exception_ctxs, build_model_ctx, build_union_ctx,
+    TagFilter, build_client_ctx, build_enum_ctx, build_exception_ctxs, build_model_ctx,
+    build_union_ctx,
 };
 use super::templates::add_template_with_override;
 
@@ -134,16 +135,54 @@ impl CodegenBackend for PlainPhpBackend {
             });
         }
 
-        // API client
-        let client_ctx = build_client_ctx(ctx.spec, ctx.namespace);
-        let content = self
-            .env
-            .get_template("client")?
-            .render(Value::from_serialize(&client_ctx))?;
-        files.push(RenderedFile {
-            rel_path: PathBuf::from("Client/ApiClient.php"),
-            content,
-        });
+        // API client(s)
+        if ctx.split_by_tag {
+            // Collect tags in appearance order, deduplicated
+            let mut tags: Vec<String> = Vec::new();
+            for ep in &ctx.spec.endpoints {
+                for tag in &ep.tags {
+                    if !tags.contains(tag) {
+                        tags.push(tag.clone());
+                    }
+                }
+            }
+            // If there are untagged endpoints, add a "default" bucket
+            let has_untagged = ctx.spec.endpoints.iter().any(|ep| ep.tags.is_empty());
+            if has_untagged {
+                tags.push("default".to_string());
+            }
+
+            for tag in &tags {
+                let filter = if tag == "default" {
+                    TagFilter::Untagged
+                } else {
+                    TagFilter::Tag(tag.as_str())
+                };
+                let client_ctx = build_client_ctx(ctx.spec, ctx.namespace, filter);
+                if client_ctx.endpoints.is_empty() {
+                    continue;
+                }
+                let class_name = client_ctx.class_name.clone();
+                let content = self
+                    .env
+                    .get_template("client")?
+                    .render(Value::from_serialize(&client_ctx))?;
+                files.push(RenderedFile {
+                    rel_path: PathBuf::from(format!("Client/{class_name}.php")),
+                    content,
+                });
+            }
+        } else {
+            let client_ctx = build_client_ctx(ctx.spec, ctx.namespace, TagFilter::All);
+            let content = self
+                .env
+                .get_template("client")?
+                .render(Value::from_serialize(&client_ctx))?;
+            files.push(RenderedFile {
+                rel_path: PathBuf::from("Client/ApiClient.php"),
+                content,
+            });
+        }
 
         Ok(files)
     }

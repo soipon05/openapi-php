@@ -102,6 +102,7 @@ fn plain_generates_union_file_with_mapping() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -159,6 +160,7 @@ fn plain_generates_union_file_no_mapping_uses_schema_name() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -186,6 +188,7 @@ fn plain_does_not_generate_file_for_union_without_discriminator() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -205,6 +208,7 @@ fn laravel_generates_union_dto_no_form_request_or_resource() {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
+        split_by_tag: false,
     };
     let backend = LaravelPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();

@@ -72,6 +72,10 @@ pub enum Command {
         /// Required when --inputs is used. Example: --namespace-prefix "SaaSus\\"
         #[arg(long, conflicts_with = "namespace")]
         namespace_prefix: Option<String>,
+
+        /// Generate one Client file per OpenAPI tag instead of a single ApiClient.php
+        #[arg(long)]
+        split_by_tag: bool,
     },
 
     /// Validate an OpenAPI spec file
@@ -116,6 +120,7 @@ impl Args {
                 watch,
                 inputs,
                 namespace_prefix,
+                split_by_tag,
             } => {
                 // Load config file (silently ignored if not found), then merge CLI flags on top.
                 let config = Config::load(&std::env::current_dir()?)?;
@@ -159,6 +164,7 @@ impl Args {
                             templates_dir: templates.clone().or_else(|| config.templates.clone()),
                             dry_run,
                             diff,
+                            split_by_tag: split_by_tag || config.split_by_tag,
                         };
                         let had = run_generate_once(&opts)?;
                         any_diff |= had;
@@ -181,6 +187,7 @@ impl Args {
                     php_version: cli_php_version,
                     templates,
                     input,
+                    split_by_tag: if split_by_tag { Some(true) } else { None },
                 });
 
                 let input_path = merged.input.ok_or_else(|| {
@@ -202,6 +209,7 @@ impl Args {
                     templates_dir: merged.templates,
                     dry_run,
                     diff,
+                    split_by_tag: merged.split_by_tag,
                 };
 
                 if watch {
@@ -225,6 +233,7 @@ struct GenerateOptions {
     templates_dir: Option<PathBuf>,
     dry_run: bool,
     diff: bool,
+    split_by_tag: bool,
 }
 
 fn run_generate_once(options: &GenerateOptions) -> Result<bool> {
@@ -238,6 +247,7 @@ fn run_generate_once(options: &GenerateOptions) -> Result<bool> {
             options.framework.clone(),
             options.templates_dir.as_deref(),
             &options.php_version,
+            options.split_by_tag,
         )?;
         return Ok(false);
     }
@@ -251,6 +261,7 @@ fn run_generate_once(options: &GenerateOptions) -> Result<bool> {
             options.framework.clone(),
             options.templates_dir.as_deref(),
             &options.php_version,
+            options.split_by_tag,
         );
     }
 
@@ -263,6 +274,7 @@ fn run_generate_once(options: &GenerateOptions) -> Result<bool> {
         options.framework.clone(),
         options.templates_dir.as_deref(),
         &options.php_version,
+        options.split_by_tag,
     )?;
     Ok(false)
 }

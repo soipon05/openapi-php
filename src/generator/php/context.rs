@@ -104,6 +104,7 @@ pub struct VariantCtx {
 #[derive(Debug, Serialize)]
 pub struct ClientCtx {
     pub namespace: String,
+    pub class_name: String,
     pub title: String,
     pub base_url: String,
     pub needs_stream_factory: bool,
@@ -545,11 +546,38 @@ pub fn build_exception_ctxs(spec: &ResolvedSpec, namespace: &str) -> Vec<Excepti
     result
 }
 
-pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
-    let needs_stream_factory = spec.endpoints.iter().any(|ep| ep.request_body.is_some());
+/// Filter mode for `build_client_ctx`.
+pub enum TagFilter<'a> {
+    /// Include all endpoints (default `ApiClient`).
+    All,
+    /// Include only endpoints that have the given tag.
+    Tag(&'a str),
+    /// Include only endpoints that have no tags at all.
+    Untagged,
+}
 
-    let mut model_refs: Vec<String> = spec
+pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFilter<'_>) -> ClientCtx {
+    // Determine class name from filter
+    let class_name = match &tag_filter {
+        TagFilter::All => "ApiClient".to_string(),
+        TagFilter::Tag(tag) => format!("{}Client", to_pascal_case(tag)),
+        TagFilter::Untagged => "DefaultClient".to_string(),
+    };
+
+    // Filter endpoints according to tag_filter
+    let filtered_endpoints: Vec<_> = spec
         .endpoints
+        .iter()
+        .filter(|ep| match &tag_filter {
+            TagFilter::All => true,
+            TagFilter::Tag(tag) => ep.tags.iter().any(|t| t == *tag),
+            TagFilter::Untagged => ep.tags.is_empty(),
+        })
+        .collect();
+
+    let needs_stream_factory = filtered_endpoints.iter().any(|ep| ep.request_body.is_some());
+
+    let mut model_refs: Vec<String> = filtered_endpoints
         .iter()
         .flat_map(|ep| {
             let mut refs = Vec::new();
@@ -585,8 +613,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
     model_refs.sort();
     model_refs.dedup();
 
-    let endpoints = spec
-        .endpoints
+    let endpoints = filtered_endpoints
         .iter()
         .map(|ep| {
             let fn_name = sanitize_php_ident(&escape_reserved(&to_camel_case(&ep.operation_id)));
@@ -715,6 +742,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str) -> ClientCtx {
 
     ClientCtx {
         namespace: namespace.to_string(),
+        class_name,
         title: sanitize_phpdoc(&spec.title),
         base_url: sanitize_php_string_literal(&spec.base_url),
         needs_stream_factory,

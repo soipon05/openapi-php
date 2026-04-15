@@ -43,6 +43,7 @@ fn nullable_ref_union_property_gets_question_mark_type() {
         spec: &spec,
         namespace: "App\\Test",
         php_version: &PhpVersion::Php82,
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -69,6 +70,7 @@ fn nullable_ref_union_from_array_uses_isset() {
         spec: &spec,
         namespace: "App\\Test",
         php_version: &PhpVersion::Php82,
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -90,6 +92,7 @@ fn nullable_ref_union_to_array_uses_nullsafe() {
         spec: &spec,
         namespace: "App\\Test",
         php_version: &PhpVersion::Php82,
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
@@ -110,6 +113,7 @@ fn nullable_ref_union_use_import_generated() {
         spec: &spec,
         namespace: "App\\Test",
         php_version: &PhpVersion::Php82,
+        split_by_tag: false,
     };
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
