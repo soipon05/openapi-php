@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Http\Requests;
+namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -17,7 +17,7 @@ class NewPetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'between:1,100'],
             'status' => ['nullable', 'string'],
             'category' => ['nullable', 'array'],
             'tags' => ['nullable', 'array'],

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Models;
 
 enum ItemStatus: string
 {

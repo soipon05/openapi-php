@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Examples\Union\Models;
-use App\Examples\Union\Models\Circle;
-use App\Examples\Union\Models\Rectangle;
+namespace App\Models;
+use App\Models\Circle;
+use App\Models\Rectangle;
 /**
  * A geometric shape. The `shapeType` field is the discriminator; use its value to determine which concrete type to deserialize.
-
  */
 final readonly class Shape
 {

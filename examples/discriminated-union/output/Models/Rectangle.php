@@ -2,10 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Examples\Union\Models;
+namespace App\Models;
 
 /**
  * A rectangle shape, identified by width and height.
+ *
+ * @phpstan-type RectangleData array{
+ *     'shapeType': string,
+ *     'width': float,
+ *     'height': float,
+ * }
  */
 readonly final class Rectangle
 {
@@ -16,15 +22,20 @@ readonly final class Rectangle
         public string $shapeType,
         /**
          * Width of the rectangle.
+         * @format float
          */
         public float $width,
         /**
          * Height of the rectangle.
+         * @format float
          */
         public float $height,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param RectangleData $data
+     * @return self
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -34,7 +45,9 @@ readonly final class Rectangle
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return RectangleData
+     */
     public function toArray(): array
     {
         return array_filter([

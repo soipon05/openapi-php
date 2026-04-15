@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Examples\Union\Models;
+namespace App\Models;
 
 /**
  * A circle shape, identified by its radius.
+ *
+ * @phpstan-type CircleData array{
+ *     'shapeType': string,
+ *     'radius': float,
+ * }
  */
 readonly final class Circle
 {
@@ -16,11 +21,15 @@ readonly final class Circle
         public string $shapeType,
         /**
          * Radius of the circle in arbitrary units.
+         * @format float
          */
         public float $radius,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param CircleData $data
+     * @return self
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -29,7 +38,9 @@ readonly final class Circle
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return CircleData
+     */
     public function toArray(): array
     {
         return array_filter([

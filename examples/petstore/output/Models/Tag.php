@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Models;
 
 /**
  * An arbitrary label that can be attached to a pet.
+ *
+ * @phpstan-type TagData array{
+ *     'id'?: int|null,
+ *     'name'?: string|null,
+ * }
  */
 readonly final class Tag
 {
@@ -20,7 +25,10 @@ readonly final class Tag
         public ?string $name = null,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param TagData $data
+     * @return self
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -29,7 +37,9 @@ readonly final class Tag
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return TagData
+     */
     public function toArray(): array
     {
         return array_filter([

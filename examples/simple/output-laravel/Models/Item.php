@@ -2,10 +2,19 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Models;
 
-use App\Generated\Models\ItemStatus;
+use App\Models\ItemStatus;
 
+/**
+ * @phpstan-type ItemData array{
+ *     'id': int,
+ *     'name': string,
+ *     'description'?: string|null,
+ *     'status'?: string|null,
+ *     'createdAt'?: string|null,
+ * }
+ */
 readonly final class Item
 {
     public function __construct(
@@ -16,7 +25,11 @@ readonly final class Item
         public ?\DateTimeImmutable $createdAt = null,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param ItemData $data
+     * @return self
+     * @throws \Exception On invalid date-time string
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -28,7 +41,9 @@ readonly final class Item
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return ItemData
+     */
     public function toArray(): array
     {
         return array_filter([

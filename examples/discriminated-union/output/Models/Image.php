@@ -2,13 +2,19 @@
 
 declare(strict_types=1);
 
-namespace App\Examples\Union\Models;
+namespace App\Models;
 
-use App\Examples\Union\Models\Shape;
+use App\Models\Shape;
 
 /**
  * An image resource. The `shape` property is a nullable reference to a Shape — demonstrates the oneOf + null-sentinel pattern.
-
+ *
+ * @phpstan-type ImageData array{
+ *     'id': int,
+ *     'url': string,
+ *     'shape'?: array<string, mixed>|null,
+ *     'label'?: string|null,
+ * }
  */
 readonly final class Image
 {
@@ -31,7 +37,10 @@ readonly final class Image
         public ?string $label = null,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param ImageData $data
+     * @return self
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -42,7 +51,9 @@ readonly final class Image
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return ImageData
+     */
     public function toArray(): array
     {
         return array_filter([

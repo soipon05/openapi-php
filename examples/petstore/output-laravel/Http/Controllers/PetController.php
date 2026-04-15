@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Http\Controllers;
+namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
-use App\Generated\Http\Requests\NewPetRequest;
-use App\Generated\Http\Resources\PetResource;
-class PetController extends Controller
+use App\Http\Requests\NewPetRequest;
+use App\Http\Resources\PetResource;
+class PetController
 {
     /**
      * List all pets

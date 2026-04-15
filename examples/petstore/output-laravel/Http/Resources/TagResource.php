@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Http\Resources;
+namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Generated\Models\Tag */
+/** @mixin \App\Models\Tag */
 class TagResource extends JsonResource
 {
     /** @return array<string, mixed> */

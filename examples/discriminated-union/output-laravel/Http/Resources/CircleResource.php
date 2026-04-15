@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Examples\Union\Http\Resources;
+namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Examples\Union\Models\Circle */
+/** @mixin \App\Models\Circle */
 class CircleResource extends JsonResource
 {
     /** @return array<string, mixed> */

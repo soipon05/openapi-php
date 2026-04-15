@@ -2,8 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Models;
 
+/**
+ * @phpstan-type CreateItemRequestData array{
+ *     'name': string,
+ *     'description'?: string|null,
+ * }
+ */
 readonly final class CreateItemRequest
 {
     public function __construct(
@@ -11,7 +17,10 @@ readonly final class CreateItemRequest
         public ?string $description = null,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param CreateItemRequestData $data
+     * @return self
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -20,7 +29,9 @@ readonly final class CreateItemRequest
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return CreateItemRequestData
+     */
     public function toArray(): array
     {
         return array_filter([

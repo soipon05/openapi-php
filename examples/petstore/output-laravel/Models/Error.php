@@ -2,10 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Models;
 
 /**
  * Standard error payload returned on 4xx / 5xx responses.
+ *
+ * @phpstan-type ErrorData array{
+ *     'code': int,
+ *     'message': string,
+ *     'details'?: string|null,
+ * }
  */
 readonly final class Error
 {
@@ -24,7 +30,10 @@ readonly final class Error
         public ?string $details = null,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param ErrorData $data
+     * @return self
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -34,7 +43,9 @@ readonly final class Error
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return ErrorData
+     */
     public function toArray(): array
     {
         return array_filter([

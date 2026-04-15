@@ -2,10 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Models;
 
 /**
  * Generic envelope returned by some store operations.
+ *
+ * @phpstan-type ApiResponseData array{
+ *     'code'?: int|null,
+ *     'type'?: string|null,
+ *     'message'?: string|null,
+ * }
  */
 readonly final class ApiResponse
 {
@@ -24,7 +30,10 @@ readonly final class ApiResponse
         public ?string $message = null,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param ApiResponseData $data
+     * @return self
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -34,7 +43,9 @@ readonly final class ApiResponse
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return ApiResponseData
+     */
     public function toArray(): array
     {
         return array_filter([

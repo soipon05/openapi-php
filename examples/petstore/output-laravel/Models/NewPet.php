@@ -2,14 +2,22 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Models;
 
-use App\Generated\Models\Category;
-use App\Generated\Models\PetStatus;
-use App\Generated\Models\Tag;
+use App\Models\Category;
+use App\Models\PetStatus;
+use App\Models\Tag;
 
 /**
  * Payload required to create or replace a pet record.
+ *
+ * @phpstan-type NewPetData array{
+ *     'name': string,
+ *     'status'?: string|null,
+ *     'category'?: array<string, mixed>|null,
+ *     'tags'?: list<array<string, mixed>>|null,
+ *     'photoUrls'?: list<string>|null,
+ * }
  */
 readonly final class NewPet
 {
@@ -30,7 +38,10 @@ readonly final class NewPet
         public ?array $photoUrls = null,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param NewPetData $data
+     * @return self
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -42,14 +53,16 @@ readonly final class NewPet
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return NewPetData
+     */
     public function toArray(): array
     {
         return array_filter([
             'name' => $this->name,
             'status' => $this->status?->value,
             'category' => $this->category?->toArray(),
-            'tags' => $this->tags,
+            'tags' => $this->tags !== null ? array_map(fn($item) => $item->toArray(), $this->tags) : null,
             'photoUrls' => $this->photoUrls,
         ], fn($v) => $v !== null);
     }

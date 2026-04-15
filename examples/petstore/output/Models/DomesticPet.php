@@ -2,15 +2,28 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Models;
 
-use App\Generated\Models\Category;
-use App\Generated\Models\PetStatus;
-use App\Generated\Models\Tag;
+use App\Models\Category;
+use App\Models\PetStatus;
+use App\Models\Tag;
 
 /**
  * A domesticated pet that extends Pet with owner contact information. Demonstrates allOf schema composition.
-
+ *
+ * @phpstan-type DomesticPetData array{
+ *     'id': int,
+ *     'name': string,
+ *     'status'?: string|null,
+ *     'category'?: array<string, mixed>|null,
+ *     'tags'?: list<array<string, mixed>>|null,
+ *     'photoUrls'?: list<string>|null,
+ *     'createdAt'?: string|null,
+ *     'updatedAt'?: string|null,
+ *     'ownerName'?: string|null,
+ *     'ownerEmail'?: string|null,
+ *     'vaccinated'?: bool|null,
+ * }
  */
 readonly final class DomesticPet
 {
@@ -49,6 +62,7 @@ readonly final class DomesticPet
         public ?string $ownerName = null,
         /**
          * Contact e-mail for the owner.
+         * @format email
          */
         public ?string $ownerEmail = null,
         /**
@@ -57,7 +71,11 @@ readonly final class DomesticPet
         public ?bool $vaccinated = null,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param DomesticPetData $data
+     * @return self
+     * @throws \Exception On invalid date-time string
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -75,7 +93,9 @@ readonly final class DomesticPet
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return DomesticPetData
+     */
     public function toArray(): array
     {
         return array_filter([
@@ -83,7 +103,7 @@ readonly final class DomesticPet
             'name' => $this->name,
             'status' => $this->status?->value,
             'category' => $this->category?->toArray(),
-            'tags' => $this->tags,
+            'tags' => $this->tags !== null ? array_map(fn($item) => $item->toArray(), $this->tags) : null,
             'photoUrls' => $this->photoUrls,
             'createdAt' => $this->createdAt?->format(\DateTimeInterface::RFC3339),
             'updatedAt' => $this->updatedAt?->format(\DateTimeInterface::RFC3339),

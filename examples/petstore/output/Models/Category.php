@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Generated\Models;
+namespace App\Models;
 
 /**
  * A grouping category for pets (e.g. Dogs, Cats).
+ *
+ * @phpstan-type CategoryData array{
+ *     'id'?: int|null,
+ *     'name'?: string|null,
+ * }
  */
 readonly final class Category
 {
@@ -20,7 +25,10 @@ readonly final class Category
         public ?string $name = null,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param CategoryData $data
+     * @return self
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -29,7 +37,9 @@ readonly final class Category
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return CategoryData
+     */
     public function toArray(): array
     {
         return array_filter([
