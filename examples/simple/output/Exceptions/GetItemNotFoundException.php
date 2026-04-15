@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Exceptions;
+namespace App\Generated\Exceptions;
 
-final class GetItemNotFoundException extends \RuntimeException
+final class GetItemNotFoundException extends ApiException
 {
     public function __construct(
         int $statusCode = 404,

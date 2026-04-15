@@ -123,6 +123,53 @@ pub fn inner_from_array(key: &str, schema: &ResolvedSchema) -> String {
     }
 }
 
+/// Build a `fromArray` expression for a **required** (non-nullable) field.
+///
+/// Uses the null-coalescing throw operator (`?? throw`) so that a missing key
+/// produces a clear `\UnexpectedValueException` instead of an "Undefined array
+/// key" PHP warning or a `TypeError` from a cast on `null`.
+///
+/// Array schemas keep the `?? []` default (an absent optional array is treated
+/// as empty rather than a hard error), which matches existing behaviour.
+fn required_from_array_expr(key: &str, schema: &ResolvedSchema) -> String {
+    let throw = format!(
+        "throw new \\UnexpectedValueException(\"Missing required field '{key}'\")"
+    );
+    match schema {
+        ResolvedSchema::Primitive(p) => {
+            let cast = match p.php_type {
+                PhpPrimitive::Int => "(int)",
+                PhpPrimitive::Float => "(float)",
+                PhpPrimitive::Bool => "(bool)",
+                PhpPrimitive::String | PhpPrimitive::Mixed => "(string)",
+                PhpPrimitive::DateTime => "",
+            };
+            if p.php_type == PhpPrimitive::DateTime {
+                format!("new \\DateTimeImmutable($data['{key}'] ?? {throw})")
+            } else {
+                format!("{cast} ($data['{key}'] ?? {throw})")
+            }
+        }
+        ResolvedSchema::Ref(name) => {
+            let safe = sanitize_php_ident(name);
+            format!("{safe}::fromArray($data['{key}'] ?? {throw})")
+        }
+        // Array schemas: keep existing `?? []` default so an absent array key
+        // is treated as empty rather than a hard error.
+        ResolvedSchema::Array(arr) => match arr.items.as_ref() {
+            ResolvedSchema::Ref(rname) => {
+                let safe = sanitize_php_ident(rname);
+                format!(
+                    "array_map(fn($item) => {safe}::fromArray($item), $data['{key}'] ?? [])"
+                )
+            }
+            _ => format!("(array) ($data['{key}'] ?? [])"),
+        },
+        ResolvedSchema::Object(_) => format!("(array) ($data['{key}'] ?? {throw})"),
+        _ => format!("($data['{key}'] ?? {throw})"),
+    }
+}
+
 pub fn from_array_expr(key: &str, schema: &ResolvedSchema, nullable: bool) -> String {
     // Sanitize the JSON key for use inside PHP single-quoted string literals.
     let key = &sanitize_php_string_literal(key);
@@ -140,18 +187,7 @@ pub fn from_array_expr(key: &str, schema: &ResolvedSchema, nullable: bool) -> St
         let inner = inner_from_array(key, schema);
         format!("isset($data['{key}']) ? {inner} : null")
     } else {
-        match schema {
-            ResolvedSchema::Array(arr) => match arr.items.as_ref() {
-                ResolvedSchema::Ref(rname) => {
-                    let safe = sanitize_php_ident(rname);
-                    format!(
-                        "array_map(fn($item) => {safe}::fromArray($item), $data['{key}'] ?? [])"
-                    )
-                }
-                _ => format!("(array) ($data['{key}'] ?? [])"),
-            },
-            _ => inner_from_array(key, schema),
-        }
+        required_from_array_expr(key, schema)
     }
 }
 

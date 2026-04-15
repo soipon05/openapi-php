@@ -41,6 +41,10 @@ final class {{ class_name }}
      * @return list<{{ ep.return_array_of }}>
      *
 {% endif %}
+{% if ep.requires_auth %}
+     * @security This endpoint requires authentication.
+     *
+{% endif %}
      * @throws \Psr\Http\Client\ClientExceptionInterface
 {% for ec in ep.error_cases %}
      * @throws \{{ namespace }}\Exceptions\{{ ec.exception_class }}

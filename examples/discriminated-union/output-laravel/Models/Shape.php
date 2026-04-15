@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
-use App\Models\Circle;
-use App\Models\Rectangle;
+namespace App\Generated\Models;
+use App\Generated\Models\Circle;
+use App\Generated\Models\Rectangle;
 /**
  * A geometric shape. The `shapeType` field is the discriminator; use its value to determine which concrete type to deserialize.
  */

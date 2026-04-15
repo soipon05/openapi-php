@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Requests;
+namespace App\Generated\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -20,7 +20,7 @@ class ItemRequest extends FormRequest
             'id' => ['required', 'integer'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'status' => ['nullable', 'string'],
+            'status' => ['nullable', 'string', 'in:active,inactive,archived'],
             'createdAt' => ['nullable', 'date'],
         ];
     }

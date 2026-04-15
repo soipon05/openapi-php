@@ -142,6 +142,8 @@ pub struct EndpointCtx {
     /// Model class name when the response is `list<Name>` — drives `array_map` + `@return list<T>`
     pub return_array_of: Option<String>,
     pub error_cases: Vec<ErrorCaseCtx>,
+    /// `true` when the OpenAPI operation declares at least one security requirement.
+    pub requires_auth: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -734,6 +736,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
                 return_array,
                 return_array_of,
                 error_cases,
+                requires_auth: ep.requires_auth,
             }
         })
         .collect::<Vec<_>>();

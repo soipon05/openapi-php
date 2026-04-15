@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Generated\Models;
 
-use App\Models\Shape;
+use App\Generated\Models\Shape;
 
 /**
  * An image resource. The `shape` property is a nullable reference to a Shape — demonstrates the oneOf + null-sentinel pattern.
@@ -44,8 +44,8 @@ readonly final class Image
     public static function fromArray(array $data): self
     {
         return new self(
-            id: (int) $data['id'],
-            url: (string) $data['url'],
+            id: (int) ($data['id'] ?? throw new \UnexpectedValueException("Missing required field 'id'")),
+            url: (string) ($data['url'] ?? throw new \UnexpectedValueException("Missing required field 'url'")),
             shape: isset($data['shape']) ? Shape::fromArray($data['shape']) : null,
             label: isset($data['label']) ? (string) $data['label'] : null,
         );

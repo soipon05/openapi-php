@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Client;
+namespace App\Petstore\Client;
 
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
-use App\Models\Error;
-use App\Models\NewPet;
-use App\Models\Pet;
-use App\Exceptions;
+use App\Petstore\Models\Error;
+use App\Petstore\Models\NewPet;
+use App\Petstore\Models\Pet;
+use App\Petstore\Exceptions;
 
 /** Fictional Petstore API API Client (auto-generated) */
 final class PetsClient
@@ -21,6 +21,7 @@ final class PetsClient
         private readonly ClientInterface $httpClient,
         private readonly RequestFactoryInterface $requestFactory,
         private readonly StreamFactoryInterface $streamFactory,
+        /** @warning Set only from trusted config. Do not pass external user input — SSRF risk. */
         private readonly string $baseUrl = self::BASE_URL,
     ) {}
 
@@ -54,7 +55,7 @@ final class PetsClient
      * Create a new pet
      *
      * @throws \Psr\Http\Client\ClientExceptionInterface
-     * @throws \App\Exceptions\CreatePetBadRequestException
+     * @throws \App\Petstore\Exceptions\CreatePetBadRequestException
      * @throws \RuntimeException On unexpected non-2xx response
      * @throws \JsonException On JSON error
      */
@@ -86,7 +87,7 @@ final class PetsClient
      * Find a pet by ID
      *
      * @throws \Psr\Http\Client\ClientExceptionInterface
-     * @throws \App\Exceptions\GetPetByIdNotFoundException
+     * @throws \App\Petstore\Exceptions\GetPetByIdNotFoundException
      * @throws \RuntimeException On unexpected non-2xx response
      * @throws \JsonException On JSON error
      */
@@ -116,7 +117,7 @@ final class PetsClient
      * Replace a pet record
      *
      * @throws \Psr\Http\Client\ClientExceptionInterface
-     * @throws \App\Exceptions\UpdatePetNotFoundException
+     * @throws \App\Petstore\Exceptions\UpdatePetNotFoundException
      * @throws \RuntimeException On unexpected non-2xx response
      * @throws \JsonException On JSON error
      */
@@ -148,7 +149,7 @@ final class PetsClient
      * Delete a pet
      *
      * @throws \Psr\Http\Client\ClientExceptionInterface
-     * @throws \App\Exceptions\DeletePetNotFoundException
+     * @throws \App\Petstore\Exceptions\DeletePetNotFoundException
      * @throws \RuntimeException On unexpected non-2xx response
      */
     public function deletePet(int $petId): void

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Resources;
+namespace App\Generated\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\Image */
+/** @mixin \App\Generated\Models\Image */
 class ImageResource extends JsonResource
 {
     /** @return array<string, mixed> */

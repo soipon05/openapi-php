@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Petstore\Models;
 
 /**
  * Standard error payload returned on 4xx / 5xx responses.
@@ -37,8 +37,8 @@ readonly final class Error
     public static function fromArray(array $data): self
     {
         return new self(
-            code: (int) $data['code'],
-            message: (string) $data['message'],
+            code: (int) ($data['code'] ?? throw new \UnexpectedValueException("Missing required field 'code'")),
+            message: (string) ($data['message'] ?? throw new \UnexpectedValueException("Missing required field 'message'")),
             details: isset($data['details']) ? (string) $data['details'] : null,
         );
     }

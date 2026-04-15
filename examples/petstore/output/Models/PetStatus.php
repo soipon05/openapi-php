@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Petstore\Models;
 
 /**
  * Lifecycle status of a pet in the store.

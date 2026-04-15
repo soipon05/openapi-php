@@ -371,6 +371,40 @@ fn laravel_routes_use_provided_namespace() {
     );
 }
 
+// ─── Enum in: validation rule ─────────────────────────────────────────────────
+
+#[test]
+fn enum_field_generates_in_validation_rule() {
+    // petstore.yaml: NewPet has a `status` field that is a $ref to PetStatus enum
+    // (values: available, pending, sold).  The generated FormRequest must contain
+    // both the type rule ("string") and the allowlist rule ("in:available,pending,sold").
+    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App",
+        split_by_tag: false,
+    };
+    let files = LaravelPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+
+    let key = PathBuf::from("Http/Requests/NewPetRequest.php");
+    assert!(
+        files.contains_key(&key),
+        "Expected Http/Requests/NewPetRequest.php to be generated; got: {:?}",
+        files.keys().collect::<Vec<_>>()
+    );
+    let content = &files[&key];
+
+    assert!(
+        content.contains("'string'"),
+        "Expected 'string' rule for PetStatus field:\n{content}"
+    );
+    assert!(
+        content.contains("'in:available,pending,sold'"),
+        "Expected 'in:available,pending,sold' rule for PetStatus field:\n{content}"
+    );
+}
+
 // ─── Multi-controller: routes/api.php emits one use import per controller ─────
 
 #[test]

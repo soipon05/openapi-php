@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Example\Models;
 
 /**
  * A rectangle shape, identified by width and height.
@@ -39,9 +39,9 @@ readonly final class Rectangle
     public static function fromArray(array $data): self
     {
         return new self(
-            shapeType: (string) $data['shapeType'],
-            width: (float) $data['width'],
-            height: (float) $data['height'],
+            shapeType: (string) ($data['shapeType'] ?? throw new \UnexpectedValueException("Missing required field 'shapeType'")),
+            width: (float) ($data['width'] ?? throw new \UnexpectedValueException("Missing required field 'width'")),
+            height: (float) ($data['height'] ?? throw new \UnexpectedValueException("Missing required field 'height'")),
         );
     }
 

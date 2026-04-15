@@ -369,16 +369,36 @@ fn derive_validation_rules(
             PhpPrimitive::DateTime => rules.push("date".to_string()),
         },
         ResolvedSchema::Array(_) => rules.push("array".to_string()),
-        ResolvedSchema::Enum(e) => match e.backing_type {
-            EnumBackingType::String => rules.push("string".to_string()),
-            EnumBackingType::Int => rules.push("integer".to_string()),
-        },
+        ResolvedSchema::Enum(e) => {
+            match e.backing_type {
+                EnumBackingType::String => rules.push("string".to_string()),
+                EnumBackingType::Int => rules.push("integer".to_string()),
+            }
+            if !e.variants.is_empty() {
+                let values = e
+                    .variants
+                    .iter()
+                    .map(|v| v.value.as_str())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                rules.push(format!("in:{values}"));
+            }
+        }
         ResolvedSchema::Ref(r) => {
             // At this point we know it's an enum ref (non-enum handled above)
             if let Some(ResolvedSchema::Enum(e)) = schemas.get(r.as_ref()) {
                 match e.backing_type {
                     EnumBackingType::String => rules.push("string".to_string()),
                     EnumBackingType::Int => rules.push("integer".to_string()),
+                }
+                if !e.variants.is_empty() {
+                    let values = e
+                        .variants
+                        .iter()
+                        .map(|v| v.value.as_str())
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    rules.push(format!("in:{values}"));
                 }
             }
         }

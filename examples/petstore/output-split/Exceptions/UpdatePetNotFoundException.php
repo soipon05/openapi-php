@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Exceptions;
+namespace App\Petstore\Exceptions;
 
-use App\Models\Error;
+use App\Petstore\Models\Error;
 
-final class UpdatePetNotFoundException extends \RuntimeException
+final class UpdatePetNotFoundException extends ApiException
 {
     public function __construct(
         private readonly Error $error,

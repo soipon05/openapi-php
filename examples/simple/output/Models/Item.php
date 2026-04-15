@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Generated\Models;
 
-use App\Models\ItemStatus;
+use App\Generated\Models\ItemStatus;
 
 /**
  * @phpstan-type ItemData array{
@@ -33,8 +33,8 @@ readonly final class Item
     public static function fromArray(array $data): self
     {
         return new self(
-            id: (int) $data['id'],
-            name: (string) $data['name'],
+            id: (int) ($data['id'] ?? throw new \UnexpectedValueException("Missing required field 'id'")),
+            name: (string) ($data['name'] ?? throw new \UnexpectedValueException("Missing required field 'name'")),
             description: isset($data['description']) ? (string) $data['description'] : null,
             status: isset($data['status']) ? ItemStatus::from($data['status']) : null,
             createdAt: isset($data['createdAt']) ? new \DateTimeImmutable($data['createdAt']) : null,

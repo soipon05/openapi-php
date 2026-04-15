@@ -86,6 +86,10 @@ pub struct Operation {
     #[serde(default)]
     pub responses: IndexMap<String, RawOrRef<Response>>,
     pub deprecated: Option<bool>,
+    /// Operation-level security requirements. An empty vec means no security is required.
+    /// Each entry maps a security scheme name to a list of required scopes.
+    #[serde(default)]
+    pub security: Vec<IndexMap<String, Vec<String>>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

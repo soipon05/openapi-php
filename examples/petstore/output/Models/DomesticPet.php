@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Petstore\Models;
 
-use App\Models\Category;
-use App\Models\PetStatus;
-use App\Models\Tag;
+use App\Petstore\Models\Category;
+use App\Petstore\Models\PetStatus;
+use App\Petstore\Models\Tag;
 
 /**
  * A domesticated pet that extends Pet with owner contact information. Demonstrates allOf schema composition.
@@ -79,8 +79,8 @@ readonly final class DomesticPet
     public static function fromArray(array $data): self
     {
         return new self(
-            id: (int) $data['id'],
-            name: (string) $data['name'],
+            id: (int) ($data['id'] ?? throw new \UnexpectedValueException("Missing required field 'id'")),
+            name: (string) ($data['name'] ?? throw new \UnexpectedValueException("Missing required field 'name'")),
             status: isset($data['status']) ? PetStatus::from($data['status']) : null,
             category: isset($data['category']) ? Category::fromArray($data['category']) : null,
             tags: isset($data['tags']) ? array_map(fn($item) => Tag::fromArray($item), $data['tags']) : null,

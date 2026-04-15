@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Example\Models;
 
 /**
  * A circle shape, identified by its radius.
@@ -33,8 +33,8 @@ readonly final class Circle
     public static function fromArray(array $data): self
     {
         return new self(
-            shapeType: (string) $data['shapeType'],
-            radius: (float) $data['radius'],
+            shapeType: (string) ($data['shapeType'] ?? throw new \UnexpectedValueException("Missing required field 'shapeType'")),
+            radius: (float) ($data['radius'] ?? throw new \UnexpectedValueException("Missing required field 'radius'")),
         );
     }
 

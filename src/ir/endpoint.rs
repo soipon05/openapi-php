@@ -48,6 +48,8 @@ pub struct ResolvedEndpoint {
     pub response: Option<ResolvedSchema>,
     pub deprecated: bool,
     pub error_responses: Vec<ResolvedErrorResponse>,
+    /// `true` when the operation declares at least one non-empty security requirement.
+    pub requires_auth: bool,
 }
 
 #[derive(Debug, Clone)]

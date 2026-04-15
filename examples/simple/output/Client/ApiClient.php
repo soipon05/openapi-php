@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Client;
+namespace App\Generated\Client;
 
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
-use App\Models\CreateItemRequest;
-use App\Models\Item;
-use App\Exceptions;
+use App\Generated\Models\CreateItemRequest;
+use App\Generated\Models\Item;
+use App\Generated\Exceptions;
 
 /** Simple API API Client (auto-generated) */
 final class ApiClient
@@ -20,6 +20,7 @@ final class ApiClient
         private readonly ClientInterface $httpClient,
         private readonly RequestFactoryInterface $requestFactory,
         private readonly StreamFactoryInterface $streamFactory,
+        /** @warning Set only from trusted config. Do not pass external user input — SSRF risk. */
         private readonly string $baseUrl = self::BASE_URL,
     ) {}
 
@@ -61,7 +62,7 @@ final class ApiClient
 
     /**
      * @throws \Psr\Http\Client\ClientExceptionInterface
-     * @throws \App\Exceptions\GetItemNotFoundException
+     * @throws \App\Generated\Exceptions\GetItemNotFoundException
      * @throws \RuntimeException On unexpected non-2xx response
      * @throws \JsonException On JSON error
      */

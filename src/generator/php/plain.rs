@@ -7,6 +7,7 @@ use crate::generator::backend::{CodegenBackend, CodegenContext, RenderedFile};
 use crate::ir::ResolvedSchema;
 use anyhow::Result;
 use minijinja::{Environment, Value};
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 
 use super::context::{
@@ -14,6 +15,12 @@ use super::context::{
     build_union_ctx,
 };
 use super::templates::add_template_with_override;
+
+/// Minimal context for rendering the `ApiException` base class template.
+#[derive(Serialize)]
+struct ApiExceptionCtx<'a> {
+    namespace: &'a str,
+}
 
 pub struct PlainPhpBackend {
     env: Environment<'static>,
@@ -58,6 +65,13 @@ impl PlainPhpBackend {
             "exception",
             "exception.php.j2",
             include_str!("../templates/php/exception.php.j2"),
+        )?;
+        add_template_with_override(
+            &mut env,
+            templates_dir,
+            "api_exception",
+            "api_exception.php.j2",
+            include_str!("../templates/php/api_exception.php.j2"),
         )?;
         Ok(Self { env })
     }
@@ -124,6 +138,20 @@ impl CodegenBackend for PlainPhpBackend {
 
         // Exception classes
         let exception_ctxs = build_exception_ctxs(ctx.spec, ctx.namespace);
+        if !exception_ctxs.is_empty() {
+            // Emit the shared base class first so autoloaders can resolve it
+            let base_ctx = ApiExceptionCtx {
+                namespace: ctx.namespace,
+            };
+            let content = self
+                .env
+                .get_template("api_exception")?
+                .render(Value::from_serialize(&base_ctx))?;
+            files.push(RenderedFile {
+                rel_path: PathBuf::from("Exceptions/ApiException.php"),
+                content,
+            });
+        }
         for exc_ctx in &exception_ctxs {
             let content = self
                 .env

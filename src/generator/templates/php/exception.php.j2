@@ -8,7 +8,7 @@ namespace {{ namespace }}\Exceptions;
 use {{ error_use }};
 {% endif %}
 
-final class {{ class_name }} extends \RuntimeException
+final class {{ class_name }} extends ApiException
 {
 {% if error_model %}
     public function __construct(

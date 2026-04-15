@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Client;
+namespace App\Example\Client;
 
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -15,6 +15,7 @@ final class ApiClient
     public function __construct(
         private readonly ClientInterface $httpClient,
         private readonly RequestFactoryInterface $requestFactory,
+        /** @warning Set only from trusted config. Do not pass external user input — SSRF risk. */
         private readonly string $baseUrl = self::BASE_URL,
     ) {}
 

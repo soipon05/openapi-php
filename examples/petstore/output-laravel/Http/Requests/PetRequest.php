@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Requests;
+namespace App\Petstore\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -19,7 +19,7 @@ class PetRequest extends FormRequest
         return [
             'id' => ['required', 'integer'],
             'name' => ['required', 'string', 'max:255'],
-            'status' => ['nullable', 'string'],
+            'status' => ['nullable', 'string', 'in:available,pending,sold'],
             'category' => ['nullable', 'array'],
             'tags' => ['nullable', 'array'],
             'photoUrls' => ['nullable', 'array'],

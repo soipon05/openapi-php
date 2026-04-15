@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Petstore\Models;
 
-use App\Models\Category;
-use App\Models\PetStatus;
-use App\Models\Tag;
+use App\Petstore\Models\Category;
+use App\Petstore\Models\PetStatus;
+use App\Petstore\Models\Tag;
 
 /**
  * Payload required to create or replace a pet record.
@@ -45,7 +45,7 @@ readonly final class NewPet
     public static function fromArray(array $data): self
     {
         return new self(
-            name: (string) $data['name'],
+            name: (string) ($data['name'] ?? throw new \UnexpectedValueException("Missing required field 'name'")),
             status: isset($data['status']) ? PetStatus::from($data['status']) : null,
             category: isset($data['category']) ? Category::fromArray($data['category']) : null,
             tags: isset($data['tags']) ? array_map(fn($item) => Tag::fromArray($item), $data['tags']) : null,

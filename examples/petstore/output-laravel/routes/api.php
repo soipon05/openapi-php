@@ -1,7 +1,7 @@
 <?php
 // Auto-generated API routes stub — wire up your controllers as needed.
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PetController;
+use App\Petstore\Http\Controllers\PetController;
 
 // GET /pets → PetController@index
 Route::get('/pets', [PetController::class, 'index']);

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Controllers;
+namespace App\Generated\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
-use App\Http\Requests\CreateItemRequestRequest;
-use App\Http\Resources\ItemResource;
+use App\Generated\Http\Requests\CreateItemRequestRequest;
+use App\Generated\Http\Resources\ItemResource;
 class ItemController
 {
     /**

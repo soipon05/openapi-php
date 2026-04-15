@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Generated\Models;
 
 /**
  * @phpstan-type CreateItemRequestData array{
@@ -24,7 +24,7 @@ readonly final class CreateItemRequest
     public static function fromArray(array $data): self
     {
         return new self(
-            name: (string) $data['name'],
+            name: (string) ($data['name'] ?? throw new \UnexpectedValueException("Missing required field 'name'")),
             description: isset($data['description']) ? (string) $data['description'] : null,
         );
     }

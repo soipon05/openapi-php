@@ -1,7 +1,7 @@
 <?php
 // Auto-generated API routes stub — wire up your controllers as needed.
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ItemController;
+use App\Generated\Http\Controllers\ItemController;
 
 // GET /items → ItemController@index
 Route::get('/items', [ItemController::class, 'index']);

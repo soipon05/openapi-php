@@ -499,6 +499,7 @@ impl<'a> Resolver<'a> {
             response,
             deprecated: op.deprecated.unwrap_or(false),
             error_responses,
+            requires_auth: !op.security.is_empty(),
         })
     }
 
