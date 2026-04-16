@@ -6,11 +6,15 @@ namespace {{ namespace }}\Models;
 {% for import in use_imports %}
 use {{ namespace }}\Models\{{ import }};
 {% endfor %}
-{% if description %}
 /**
+{% if description %}
  * {{ description }}
- */
+ *
 {% endif %}
+{% for import in use_imports %}
+ * @phpstan-import-type {{ import }}Data from {{ import }}
+{% endfor %}
+ */
 {% if use_readonly_class %}
 final readonly class {{ name }}
 {% else %}
@@ -29,7 +33,7 @@ final class {{ name }}
     ) {}
 {% endif %}
 
-    /** @param array<string, mixed> $data */
+    /** @param {{ phpstan_param_type }} $data */
     public static function fromArray(array $data): self
     {
         return match ((string) ($data['{{ discriminator }}'] ?? '')) {

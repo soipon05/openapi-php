@@ -189,6 +189,8 @@ pub struct UnionCtx {
     pub use_imports: Vec<String>,
     /// true → emit `final readonly class` (PHP 8.2+); false → per-property `readonly`
     pub use_readonly_class: bool,
+    /// PHPStan `@param` type for `fromArray()`, e.g. "DogData|CatData"
+    pub phpstan_param_type: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -464,6 +466,11 @@ pub fn build_union_ctx(
         .collect();
 
     let variant_type = class_names.join("|");
+    let phpstan_param_type = class_names
+        .iter()
+        .map(|cn| format!("{}Data", cn))
+        .collect::<Vec<_>>()
+        .join("|");
 
     let mut refs = BTreeSet::new();
     for cn in &class_names {
@@ -482,6 +489,7 @@ pub fn build_union_ctx(
         variants,
         use_imports,
         use_readonly_class,
+        phpstan_param_type,
     })
 }
 

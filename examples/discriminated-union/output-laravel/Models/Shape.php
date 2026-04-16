@@ -7,6 +7,9 @@ use App\Generated\Models\Circle;
 use App\Generated\Models\Rectangle;
 /**
  * A geometric shape. The `shapeType` field is the discriminator; use its value to determine which concrete type to deserialize.
+ *
+ * @phpstan-import-type CircleData from Circle
+ * @phpstan-import-type RectangleData from Rectangle
  */
 final readonly class Shape
 {
@@ -15,7 +18,7 @@ final readonly class Shape
         public Circle|Rectangle $value,
     ) {}
 
-    /** @param array<string, mixed> $data */
+    /** @param CircleData|RectangleData $data */
     public static function fromArray(array $data): self
     {
         return match ((string) ($data['shapeType'] ?? '')) {
