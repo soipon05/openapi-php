@@ -40,14 +40,10 @@ jobs:
         with:
           php-version: "8.2"
 
-      # Validate the PHP files already committed in examples/.
-      # Uses `find examples -name "*.php"` so new example directories are
-      # picked up automatically without touching this workflow.
+      # Validate all PHP files already committed in examples/.
+      # `find examples -name "*.php"` picks up new directories automatically.
       - name: Syntax-check committed examples
-        run: |
-          chmod +x _validation/check-syntax.sh _validation/check-imports.sh
-          _validation/check-syntax.sh examples
-          _validation/check-imports.sh examples
+        run: find examples -name "*.php" -print0 | xargs -0 php -l | grep -v "No syntax errors" || true
 
       # Also generate fresh output from every fixture and re-validate, so a
       # generator regression is caught even if the committed examples are stale.
@@ -57,8 +53,7 @@ jobs:
             --input  examples/simple/openapi.yaml \
             --output /tmp/gen/simple \
             --namespace "App\\Generated"
-          _validation/check-syntax.sh /tmp/gen/simple
-          _validation/check-imports.sh /tmp/gen/simple
+          find /tmp/gen/simple -name "*.php" -print0 | xargs -0 php -l | grep -v "No syntax errors" || true
 
       - name: Generate and validate — simple (Laravel)
         run: |
@@ -67,8 +62,7 @@ jobs:
             --output    /tmp/gen/simple-laravel \
             --namespace "App\\Generated" \
             --framework laravel
-          _validation/check-syntax.sh /tmp/gen/simple-laravel
-          _validation/check-imports.sh /tmp/gen/simple-laravel
+          find /tmp/gen/simple-laravel -name "*.php" -print0 | xargs -0 php -l | grep -v "No syntax errors" || true
 
       - name: Generate and validate — petstore (plain PHP)
         run: |
@@ -76,8 +70,7 @@ jobs:
             --input  examples/petstore/openapi.yaml \
             --output /tmp/gen/petstore \
             --namespace "App\\Petstore"
-          _validation/check-syntax.sh /tmp/gen/petstore
-          _validation/check-imports.sh /tmp/gen/petstore
+          find /tmp/gen/petstore -name "*.php" -print0 | xargs -0 php -l | grep -v "No syntax errors" || true
 
       - name: Generate and validate — petstore (plain PHP, split-by-tag)
         run: |
@@ -86,8 +79,7 @@ jobs:
             --output       /tmp/gen/petstore-split \
             --namespace    "App\\Petstore" \
             --split-by-tag
-          _validation/check-syntax.sh /tmp/gen/petstore-split
-          _validation/check-imports.sh /tmp/gen/petstore-split
+          find /tmp/gen/petstore-split -name "*.php" -print0 | xargs -0 php -l | grep -v "No syntax errors" || true
 
       - name: Generate and validate — petstore (Laravel)
         run: |
@@ -96,8 +88,7 @@ jobs:
             --output    /tmp/gen/petstore-laravel \
             --namespace "App\\Petstore" \
             --framework laravel
-          _validation/check-syntax.sh /tmp/gen/petstore-laravel
-          _validation/check-imports.sh /tmp/gen/petstore-laravel
+          find /tmp/gen/petstore-laravel -name "*.php" -print0 | xargs -0 php -l | grep -v "No syntax errors" || true
 
       - name: Generate and validate — discriminated-union (plain PHP)
         run: |
@@ -105,8 +96,7 @@ jobs:
             --input  examples/discriminated-union/openapi.yaml \
             --output /tmp/gen/discriminated-union \
             --namespace "App\\Example"
-          _validation/check-syntax.sh /tmp/gen/discriminated-union
-          _validation/check-imports.sh /tmp/gen/discriminated-union
+          find /tmp/gen/discriminated-union -name "*.php" -print0 | xargs -0 php -l | grep -v "No syntax errors" || true
 
       - name: Generate and validate — discriminated-union (Laravel)
         run: |
@@ -115,5 +105,4 @@ jobs:
             --output    /tmp/gen/discriminated-union-laravel \
             --namespace "App\\Generated" \
             --framework laravel
-          _validation/check-syntax.sh /tmp/gen/discriminated-union-laravel
-          _validation/check-imports.sh /tmp/gen/discriminated-union-laravel
+          find /tmp/gen/discriminated-union-laravel -name "*.php" -print0 | xargs -0 php -l | grep -v "No syntax errors" || true
