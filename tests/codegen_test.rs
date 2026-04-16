@@ -753,10 +753,10 @@ fn phpstan_to_shape_values_are_non_null() {
 
 // ─── PHPStan list<T> precision tests ──────────────────────────────────────────
 
-/// Array properties backed by a DTO ref must emit `list<array<string, mixed>>`,
-/// not the vague `array<string, mixed>`.
+/// Array properties backed by a DTO ref must emit `list<TagData>` (named PHPStan
+/// type alias), not the vague `list<array<string, mixed>>`.
 #[test]
-fn phpstan_shape_dto_array_emits_list_of_array() {
+fn phpstan_shape_dto_array_emits_list_of_named_alias() {
     let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
     let ctx = CodegenContext {
         php_version: &PhpVersion::Php82,
@@ -768,16 +768,20 @@ fn phpstan_shape_dto_array_emits_list_of_array() {
     let files = backend.run_dry(&ctx).unwrap();
     let pet = files[&PathBuf::from("Models/Pet.php")].as_str();
 
-    // `tags` is array<Tag> — shape should be list<array<string, mixed>>
+    // `tags` is array<Tag> — shape should be list<TagData>
     assert!(
-        pet.contains("list<array<string, mixed>>"),
-        "DTO array property must emit list<array<string, mixed>> in shape:\n{pet}"
+        pet.contains("list<TagData>"),
+        "DTO array property must emit list<TagData> in shape:\n{pet}"
+    );
+    // `category` is Category ref — shape should be CategoryData
+    assert!(
+        pet.contains("CategoryData"),
+        "DTO ref property must emit CategoryData in shape:\n{pet}"
     );
     // Must NOT fall back to bare array<string, mixed>
     assert!(
-        !pet.contains("'tags'?: array<string, mixed>")
-            && !pet.contains("'tags': array<string, mixed>"),
-        "tags property must not appear as bare array<string, mixed>:\n{pet}"
+        !pet.contains("list<array<string, mixed>>"),
+        "DTO array must not emit list<array<string, mixed>>:\n{pet}"
     );
 }
 

@@ -12,7 +12,7 @@ use App\Example\Models\Shape;
  * @phpstan-type ImageData array{
  *     'id': int,
  *     'url': string,
- *     'shape'?: array<string, mixed>|null,
+ *     'shape'?: ShapeData|null,
  *     'label'?: string|null,
  * }
  */

@@ -39,7 +39,7 @@ final class ApiClient
             ->createRequest('GET', $this->baseUrl . '/items');
         $response = $this->httpClient->sendRequest($request);
         $this->assertSuccessful($response, 'GET', '/items');
-        /** @var list<array<string, mixed>> $items */
+        /** @var list<ItemData> $items */
         $items = $this->decodeJson($response);
         return array_map(fn(array $item) => Item::fromArray($item), $items);
     }

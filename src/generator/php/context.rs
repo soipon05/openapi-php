@@ -66,9 +66,9 @@ pub struct PropertyCtx {
     /// and array properties are expressed as `list<T>`. Examples:
     /// - `int`, `string`, `bool`
     /// - `string`  (for a `PetStatus` string-backed enum ref)
-    /// - `array<string, mixed>`  (for a DTO ref)
+    /// - `CategoryData`          (for a DTO ref — uses named PHPStan type alias)
     /// - `list<string>`          (for `array<string>`)
-    /// - `list<array<string, mixed>>`  (for `array<SomeDto>`)
+    /// - `list<TagData>`         (for `array<SomeDto>` — uses named PHPStan type alias)
     pub phpstan_wire: String,
     pub description: Option<String>,
     /// OpenAPI `format` value for primitive properties (e.g. "uuid", "email", "uri").
@@ -770,17 +770,17 @@ fn has_datetime_schema(schema: &ResolvedSchema) -> bool {
 /// Map a PHP constructor type to its JSON/array-data equivalent for PHPStan shapes.
 ///
 /// `\DateTimeImmutable` properties are carried as `string` in the raw array.
-/// Named DTO classes (`Foo`) appear as `array<string, mixed>` in the raw array.
 /// Nullable leading `?` is stripped — key optionality is expressed in the key suffix.
+/// DTO class names (`Foo`) map to their named PHPStan type alias (`FooData`).
 fn phpstan_scalar_type(php_type: &str) -> String {
     let base = php_type.trim_start_matches('?');
     match base {
         "\\DateTimeImmutable" => "string".to_string(),
         "mixed" => "mixed".to_string(),
         b if b.starts_with("array") => "array<string, mixed>".to_string(),
-        // Uppercase first char → PHP class name (DTO) → array on the wire
+        // Uppercase first char → PHP class name (DTO) → use named PHPStan type alias
         b if b.chars().next().is_some_and(|c| c.is_uppercase()) => {
-            "array<string, mixed>".to_string()
+            format!("{}Data", b)
         }
         b => b.to_string(),
     }
@@ -818,10 +818,10 @@ fn phpstan_to_entry(p: &PropertyCtx) -> String {
 /// | Schema kind       | Result                   |
 /// |-------------------|--------------------------|
 /// | Array of enum     | `list<string\|int>`      |
-/// | Array of DTO      | `list<array<s,m>>`       |
+/// | Array of DTO      | `list<FooData>`          |
 /// | Array of prim     | `list<string>` etc.      |
 /// | Ref → enum        | backing scalar           |
-/// | Ref → DTO         | `array<string, mixed>`   |
+/// | Ref → DTO         | `FooData`                |
 /// | Primitive/DateTime| scalar / `string`        |
 fn compute_phpstan_wire(
     schema: &ResolvedSchema,
@@ -838,6 +838,7 @@ fn compute_phpstan_wire(
                 EnumBackingType::String => "string".to_string(),
                 EnumBackingType::Int => "int".to_string(),
             },
+            Some(ResolvedSchema::Object(_)) => format!("{}Data", name),
             _ => "array<string, mixed>".to_string(),
         },
         _ => phpstan_scalar_type(php_type),
@@ -847,7 +848,7 @@ fn compute_phpstan_wire(
 /// Resolve the PHPStan wire type for array items, with full schema context.
 ///
 /// - Enum ref    → backing scalar type (`"string"` or `"int"`)
-/// - DTO ref     → `"array<string, mixed>"`
+/// - DTO ref     → named PHPStan type alias (`"FooData"`)
 /// - Primitive   → the primitive type (via `phpstan_scalar_type`)
 fn phpstan_items_wire_type(
     items: &ResolvedSchema,
@@ -859,6 +860,7 @@ fn phpstan_items_wire_type(
                 EnumBackingType::String => "string".to_string(),
                 EnumBackingType::Int => "int".to_string(),
             },
+            Some(ResolvedSchema::Object(_)) => format!("{}Data", name),
             _ => "array<string, mixed>".to_string(),
         },
         other => phpstan_scalar_type(&items_type_name(other)),

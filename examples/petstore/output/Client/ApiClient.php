@@ -46,7 +46,7 @@ final class ApiClient
         $request = $this->requestFactory->createRequest('GET', $uri);
         $response = $this->httpClient->sendRequest($request);
         $this->assertSuccessful($response, 'GET', '/pets');
-        /** @var list<array<string, mixed>> $items */
+        /** @var list<PetData> $items */
         $items = $this->decodeJson($response);
         return array_map(fn(array $item) => Pet::fromArray($item), $items);
     }

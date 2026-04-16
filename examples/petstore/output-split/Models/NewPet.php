@@ -14,8 +14,8 @@ use App\Petstore\Models\Tag;
  * @phpstan-type NewPetData array{
  *     'name': string,
  *     'status'?: string|null,
- *     'category'?: array<string, mixed>|null,
- *     'tags'?: list<array<string, mixed>>|null,
+ *     'category'?: CategoryData|null,
+ *     'tags'?: list<TagData>|null,
  *     'photoUrls'?: list<string>|null,
  * }
  */

@@ -132,7 +132,7 @@ final class {{ class_name }}
 {% if ep.return_ref %}
         return {{ ep.return_ref }}::fromArray($this->decodeJson($response));
 {% elif ep.return_array_of %}
-        /** @var list<array<string, mixed>> $items */
+        /** @var list<{{ ep.return_array_of }}Data> $items */
         $items = $this->decodeJson($response);
         return array_map(fn(array $item) => {{ ep.return_array_of }}::fromArray($item), $items);
 {% elif ep.return_array %}
