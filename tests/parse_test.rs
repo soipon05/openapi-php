@@ -353,3 +353,59 @@ fn petstore_pet_created_at_has_date_time_format() {
         "Pet.createdAt must have format: date-time"
     );
 }
+
+// ─── Global security inheritance ─────────────────────────────────────────────
+
+/// An operation without an explicit security field inherits the global security
+/// definition and must resolve to `requires_auth: true`.
+#[test]
+fn global_security_inherited_when_operation_has_none() {
+    let spec =
+        openapi_php::parser::load_and_resolve(&fixture("global_security.yaml")).unwrap();
+
+    let ep = spec
+        .endpoints
+        .iter()
+        .find(|e| e.operation_id == "getSecure")
+        .expect("getSecure endpoint must exist");
+
+    assert!(
+        ep.requires_auth,
+        "getSecure has no operation-level security, so it must inherit the global definition (requires_auth = true)"
+    );
+}
+
+/// An operation with `security: []` explicitly overrides global security and
+/// must resolve to `requires_auth: false`.
+#[test]
+fn global_security_overridden_by_empty_operation_security() {
+    let spec =
+        openapi_php::parser::load_and_resolve(&fixture("global_security.yaml")).unwrap();
+
+    let ep = spec
+        .endpoints
+        .iter()
+        .find(|e| e.operation_id == "getPublic")
+        .expect("getPublic endpoint must exist");
+
+    assert!(
+        !ep.requires_auth,
+        "getPublic has security: [] which must override global security (requires_auth = false)"
+    );
+}
+
+/// Verify that the raw global security field on the OpenApi struct is parsed
+/// correctly (one entry keyed \"ApiKeyAuth\").
+#[test]
+fn global_security_field_is_parsed_on_raw_spec() {
+    let spec = openapi_php::parser::load(&fixture("global_security.yaml")).unwrap();
+    assert_eq!(
+        spec.security.len(),
+        1,
+        "global_security.yaml must have exactly 1 global security requirement"
+    );
+    assert!(
+        spec.security[0].contains_key("ApiKeyAuth"),
+        "global security entry must be keyed 'ApiKeyAuth'"
+    );
+}

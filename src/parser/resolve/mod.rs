@@ -62,7 +62,8 @@ pub fn resolve(raw: &RawOpenApi) -> Result<ResolvedSpec> {
 
         let path_level = item.parameters.clone();
         for (method, op) in ops {
-            let ep = resolver.resolve_endpoint(path, method, op, &path_level)?;
+            let ep =
+                resolver.resolve_endpoint(path, method, op, &path_level, &raw.security)?;
             endpoints.push(ep);
         }
     }
@@ -443,6 +444,7 @@ impl<'a> Resolver<'a> {
         method: HttpMethod,
         op: &Operation,
         path_level_params: &[RawOrRef<Parameter>],
+        global_security: &[IndexMap<String, Vec<String>>],
     ) -> Result<ResolvedEndpoint> {
         let operation_id = op
             .operation_id
@@ -499,7 +501,14 @@ impl<'a> Resolver<'a> {
             response,
             deprecated: op.deprecated.unwrap_or(false),
             error_responses,
-            requires_auth: !op.security.is_empty(),
+            // Determine auth requirement using the three-way distinction:
+            //   None       → field absent → inherit from global security
+            //   Some([])   → explicitly no auth → false
+            //   Some([…])  → at least one requirement → true
+            requires_auth: match &op.security {
+                None => !global_security.is_empty(),
+                Some(op_sec) => !op_sec.is_empty(),
+            },
         })
     }
 

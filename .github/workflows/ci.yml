@@ -34,40 +34,86 @@ jobs:
         run: cargo clippy -- -D warnings
 
       # ── PHP validation ──────────────────────────────────────────────────────
-      # Generates PHP from the simple fixture and checks every file for syntax
-      # errors.  Uses only fictional test data — no real API endpoints.
 
       - name: Install PHP 8.2
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
 
-      - name: Generate PHP from simple fixture and validate syntax
+      # Validate the PHP files already committed in examples/.
+      # Uses `find examples -name "*.php"` so new example directories are
+      # picked up automatically without touching this workflow.
+      - name: Syntax-check committed examples
+        run: |
+          chmod +x _validation/check-syntax.sh _validation/check-imports.sh
+          _validation/check-syntax.sh examples
+          _validation/check-imports.sh examples
+
+      # Also generate fresh output from every fixture and re-validate, so a
+      # generator regression is caught even if the committed examples are stale.
+      - name: Generate and validate — simple (plain PHP)
         run: |
           ./target/release/openapi-php generate \
-            --input  tests/fixtures/simple.yaml \
-            --output /tmp/php-generated \
-            --namespace "Example\\Generated"
+            --input  examples/simple/openapi.yaml \
+            --output /tmp/gen/simple \
+            --namespace "App\\Generated"
+          _validation/check-syntax.sh /tmp/gen/simple
+          _validation/check-imports.sh /tmp/gen/simple
 
-          echo "--- Generated files ---"
-          find /tmp/php-generated -name "*.php" | sort
-
-          echo "--- Syntax check ---"
-          find /tmp/php-generated -name "*.php" -exec php -l {} \;
-
-          echo "All generated PHP files are syntactically valid."
-
-      - name: Generate PHP from petstore fixture and validate syntax
+      - name: Generate and validate — simple (Laravel)
         run: |
           ./target/release/openapi-php generate \
-            --input  tests/fixtures/petstore.yaml \
-            --output /tmp/php-generated-petstore \
-            --namespace "Example\\Petstore"
+            --input     examples/simple/openapi.yaml \
+            --output    /tmp/gen/simple-laravel \
+            --namespace "App\\Generated" \
+            --framework laravel
+          _validation/check-syntax.sh /tmp/gen/simple-laravel
+          _validation/check-imports.sh /tmp/gen/simple-laravel
 
-          echo "--- Generated files ---"
-          find /tmp/php-generated-petstore -name "*.php" | sort
+      - name: Generate and validate — petstore (plain PHP)
+        run: |
+          ./target/release/openapi-php generate \
+            --input  examples/petstore/openapi.yaml \
+            --output /tmp/gen/petstore \
+            --namespace "App\\Petstore"
+          _validation/check-syntax.sh /tmp/gen/petstore
+          _validation/check-imports.sh /tmp/gen/petstore
 
-          echo "--- Syntax check ---"
-          find /tmp/php-generated-petstore -name "*.php" -exec php -l {} \;
+      - name: Generate and validate — petstore (plain PHP, split-by-tag)
+        run: |
+          ./target/release/openapi-php generate \
+            --input        examples/petstore/openapi.yaml \
+            --output       /tmp/gen/petstore-split \
+            --namespace    "App\\Petstore" \
+            --split-by-tag
+          _validation/check-syntax.sh /tmp/gen/petstore-split
+          _validation/check-imports.sh /tmp/gen/petstore-split
 
-          echo "All generated petstore PHP files are syntactically valid."
+      - name: Generate and validate — petstore (Laravel)
+        run: |
+          ./target/release/openapi-php generate \
+            --input     examples/petstore/openapi.yaml \
+            --output    /tmp/gen/petstore-laravel \
+            --namespace "App\\Petstore" \
+            --framework laravel
+          _validation/check-syntax.sh /tmp/gen/petstore-laravel
+          _validation/check-imports.sh /tmp/gen/petstore-laravel
+
+      - name: Generate and validate — discriminated-union (plain PHP)
+        run: |
+          ./target/release/openapi-php generate \
+            --input  examples/discriminated-union/openapi.yaml \
+            --output /tmp/gen/discriminated-union \
+            --namespace "App\\Example"
+          _validation/check-syntax.sh /tmp/gen/discriminated-union
+          _validation/check-imports.sh /tmp/gen/discriminated-union
+
+      - name: Generate and validate — discriminated-union (Laravel)
+        run: |
+          ./target/release/openapi-php generate \
+            --input     examples/discriminated-union/openapi.yaml \
+            --output    /tmp/gen/discriminated-union-laravel \
+            --namespace "App\\Generated" \
+            --framework laravel
+          _validation/check-syntax.sh /tmp/gen/discriminated-union-laravel
+          _validation/check-imports.sh /tmp/gen/discriminated-union-laravel

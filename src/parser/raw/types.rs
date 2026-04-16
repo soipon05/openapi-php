@@ -36,6 +36,11 @@ pub struct OpenApi {
     pub servers: Vec<Server>,
     #[serde(default)]
     pub tags: Vec<Tag>,
+    /// Root-level security requirements. Applied to all operations that do not
+    /// declare their own `security` field. Each entry maps a security scheme
+    /// name to a list of required scopes.
+    #[serde(default)]
+    pub security: Vec<IndexMap<String, Vec<String>>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -86,10 +91,15 @@ pub struct Operation {
     #[serde(default)]
     pub responses: IndexMap<String, RawOrRef<Response>>,
     pub deprecated: Option<bool>,
-    /// Operation-level security requirements. An empty vec means no security is required.
-    /// Each entry maps a security scheme name to a list of required scopes.
-    #[serde(default)]
-    pub security: Vec<IndexMap<String, Vec<String>>>,
+    /// Operation-level security requirements.
+    ///
+    /// - `None`       — field absent in the spec; inherit from the global `security` list.
+    /// - `Some([])`   — explicitly overridden to "no security required".
+    /// - `Some([…])`  — one or more security requirements; auth is required.
+    ///
+    /// `#[serde(default)]` is intentionally **not** applied here so that a
+    /// missing field deserialises as `None` rather than `Some([])`.
+    pub security: Option<Vec<IndexMap<String, Vec<String>>>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
