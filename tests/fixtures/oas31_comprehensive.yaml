@@ -1,0 +1,90 @@
+openapi: "3.1.0"
+info:
+  title: OAS 3.1 Comprehensive Test
+  summary: Exercises JSON Schema 2020-12 features added in OpenAPI 3.1
+  description: Covers const, multi-type, nullable, webhooks, SPDX license
+  version: "1.2.3"
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: https://example.com/v1
+
+paths:
+  /items:
+    get:
+      operationId: listItems
+      parameters:
+        # OAS 3.1: nullable via `type: [T, "null"]` for query params
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Item"
+
+  /items/{id}:
+    get:
+      operationId: getItem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+
+# OAS 3.1 adds the top-level `webhooks` key. We don't generate client methods
+# for webhooks, but the spec must still parse cleanly.
+webhooks:
+  itemCreated:
+    post:
+      operationId: onItemCreated
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Item"
+      responses:
+        "200":
+          description: Acknowledged
+
+components:
+  schemas:
+    Item:
+      type: object
+      required: [id, name, kind]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          # OAS 3.1 canonical nullable form — `type: [T, "null"]`.
+          type: ["string", "null"]
+        score:
+          type: ["number", "null"]
+        # JSON Schema 2020-12 `const`: fixed literal value. Treated as a
+        # zero-variant enum → generates a string-backed single-case BackedEnum
+        # OR a constant default; at minimum must not crash the parser.
+        kind:
+          type: string
+          const: "item"
+        tags:
+          type: array
+          items:
+            type: string
