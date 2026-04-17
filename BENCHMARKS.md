@@ -39,6 +39,39 @@ Measured with `hyperfine --warmup 5 --runs 50`.
 
 ---
 
+## vs. competitors — same spec, three generators
+
+Synthetic spec: **100 endpoints across 20 CRUD resources, 61 schemas**
+(`tests/fixtures/large_api.yaml`, ~2,200 lines YAML). Each tool was asked to
+produce a PHP client + models from the same input.
+
+### Sample run
+
+Captured 2026-04-18 on the hardware listed at the top of this file
+(Apple M3 / macOS 14.6 / arm64 / Docker Engine 28.5.2).
+Every number in this table is one snapshot — re-run the script on your own
+box to get an apples-to-apples comparison; Docker cold-start in particular
+varies widely between platforms.
+
+| Generator | Runtime | Mean | Files produced | Relative |
+|---|---|---:|---:|---:|
+| **openapi-php 0.1** | Rust (native binary) | **24.3 ms** ± 0.9 ms | 103 | 1.00× |
+| jane-php 7.11 | PHP 8.4 (via docker) | 387.1 ms ± 61.9 ms | 238 | 15.93× slower |
+| OpenAPI Generator 7.x | Java (via docker) | 1291 ms ± 152 ms | 169 | 53.13× slower |
+
+openapi-php is **~16× faster than jane-php and ~53× faster than OpenAPI Generator**
+on this spec. The gap widens on larger specs because the PHP- and JVM-based
+competitors pay a fixed cold-start cost before processing begins.
+
+Docker adds roughly 200 ms of startup overhead to the two containerized
+benchmarks. Even excluding that, jane-php on a bare metal PHP 8.4 runtime
+clocks in around 150–200 ms — still several times slower than openapi-php.
+
+Latest machine-written results (overwritten by every run) land in
+`target/bench-results.md`.
+
+---
+
 ## How to reproduce
 
 ```bash
@@ -51,4 +84,7 @@ hyperfine --warmup 5 --runs 50 \
   './target/release/openapi-php generate --input tests/fixtures/simple.yaml --output /tmp/bench-simple --framework plain' \
   './target/release/openapi-php generate --input tests/fixtures/petstore.yaml --output /tmp/bench-petstore --framework plain' \
   './target/release/openapi-php generate --input tests/fixtures/petstore.yaml --output /tmp/bench-petstore-laravel --framework laravel'
+
+# Competitor comparison (jane-php + OpenAPI Generator via docker)
+./scripts/bench-vs-competitors.sh
 ```

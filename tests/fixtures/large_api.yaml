@@ -1,0 +1,2196 @@
+openapi: "3.0.3"
+info:
+  title: Large synthetic API (20 resources)
+  version: "1.0.0"
+servers:
+  - url: https://example.com/v1
+paths:
+  /resource1s:
+    get:
+      operationId: listResource1s
+      tags: [resource1s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource1' }
+    post:
+      operationId: createResource1
+      tags: [resource1s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource1' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource1' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource1s/{id}:
+    get:
+      operationId: getResource1
+      tags: [resource1s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource1' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource1
+      tags: [resource1s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource1' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource1' }
+    delete:
+      operationId: deleteResource1
+      tags: [resource1s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource2s:
+    get:
+      operationId: listResource2s
+      tags: [resource2s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource2' }
+    post:
+      operationId: createResource2
+      tags: [resource2s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource2' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource2' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource2s/{id}:
+    get:
+      operationId: getResource2
+      tags: [resource2s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource2' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource2
+      tags: [resource2s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource2' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource2' }
+    delete:
+      operationId: deleteResource2
+      tags: [resource2s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource3s:
+    get:
+      operationId: listResource3s
+      tags: [resource3s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource3' }
+    post:
+      operationId: createResource3
+      tags: [resource3s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource3' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource3' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource3s/{id}:
+    get:
+      operationId: getResource3
+      tags: [resource3s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource3' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource3
+      tags: [resource3s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource3' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource3' }
+    delete:
+      operationId: deleteResource3
+      tags: [resource3s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource4s:
+    get:
+      operationId: listResource4s
+      tags: [resource4s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource4' }
+    post:
+      operationId: createResource4
+      tags: [resource4s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource4' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource4' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource4s/{id}:
+    get:
+      operationId: getResource4
+      tags: [resource4s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource4' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource4
+      tags: [resource4s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource4' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource4' }
+    delete:
+      operationId: deleteResource4
+      tags: [resource4s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource5s:
+    get:
+      operationId: listResource5s
+      tags: [resource5s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource5' }
+    post:
+      operationId: createResource5
+      tags: [resource5s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource5' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource5' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource5s/{id}:
+    get:
+      operationId: getResource5
+      tags: [resource5s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource5' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource5
+      tags: [resource5s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource5' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource5' }
+    delete:
+      operationId: deleteResource5
+      tags: [resource5s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource6s:
+    get:
+      operationId: listResource6s
+      tags: [resource6s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource6' }
+    post:
+      operationId: createResource6
+      tags: [resource6s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource6' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource6' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource6s/{id}:
+    get:
+      operationId: getResource6
+      tags: [resource6s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource6' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource6
+      tags: [resource6s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource6' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource6' }
+    delete:
+      operationId: deleteResource6
+      tags: [resource6s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource7s:
+    get:
+      operationId: listResource7s
+      tags: [resource7s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource7' }
+    post:
+      operationId: createResource7
+      tags: [resource7s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource7' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource7' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource7s/{id}:
+    get:
+      operationId: getResource7
+      tags: [resource7s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource7' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource7
+      tags: [resource7s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource7' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource7' }
+    delete:
+      operationId: deleteResource7
+      tags: [resource7s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource8s:
+    get:
+      operationId: listResource8s
+      tags: [resource8s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource8' }
+    post:
+      operationId: createResource8
+      tags: [resource8s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource8' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource8' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource8s/{id}:
+    get:
+      operationId: getResource8
+      tags: [resource8s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource8' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource8
+      tags: [resource8s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource8' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource8' }
+    delete:
+      operationId: deleteResource8
+      tags: [resource8s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource9s:
+    get:
+      operationId: listResource9s
+      tags: [resource9s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource9' }
+    post:
+      operationId: createResource9
+      tags: [resource9s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource9' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource9' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource9s/{id}:
+    get:
+      operationId: getResource9
+      tags: [resource9s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource9' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource9
+      tags: [resource9s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource9' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource9' }
+    delete:
+      operationId: deleteResource9
+      tags: [resource9s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource10s:
+    get:
+      operationId: listResource10s
+      tags: [resource10s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource10' }
+    post:
+      operationId: createResource10
+      tags: [resource10s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource10' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource10' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource10s/{id}:
+    get:
+      operationId: getResource10
+      tags: [resource10s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource10' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource10
+      tags: [resource10s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource10' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource10' }
+    delete:
+      operationId: deleteResource10
+      tags: [resource10s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource11s:
+    get:
+      operationId: listResource11s
+      tags: [resource11s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource11' }
+    post:
+      operationId: createResource11
+      tags: [resource11s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource11' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource11' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource11s/{id}:
+    get:
+      operationId: getResource11
+      tags: [resource11s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource11' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource11
+      tags: [resource11s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource11' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource11' }
+    delete:
+      operationId: deleteResource11
+      tags: [resource11s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource12s:
+    get:
+      operationId: listResource12s
+      tags: [resource12s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource12' }
+    post:
+      operationId: createResource12
+      tags: [resource12s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource12' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource12' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource12s/{id}:
+    get:
+      operationId: getResource12
+      tags: [resource12s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource12' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource12
+      tags: [resource12s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource12' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource12' }
+    delete:
+      operationId: deleteResource12
+      tags: [resource12s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource13s:
+    get:
+      operationId: listResource13s
+      tags: [resource13s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource13' }
+    post:
+      operationId: createResource13
+      tags: [resource13s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource13' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource13' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource13s/{id}:
+    get:
+      operationId: getResource13
+      tags: [resource13s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource13' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource13
+      tags: [resource13s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource13' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource13' }
+    delete:
+      operationId: deleteResource13
+      tags: [resource13s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource14s:
+    get:
+      operationId: listResource14s
+      tags: [resource14s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource14' }
+    post:
+      operationId: createResource14
+      tags: [resource14s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource14' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource14' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource14s/{id}:
+    get:
+      operationId: getResource14
+      tags: [resource14s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource14' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource14
+      tags: [resource14s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource14' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource14' }
+    delete:
+      operationId: deleteResource14
+      tags: [resource14s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource15s:
+    get:
+      operationId: listResource15s
+      tags: [resource15s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource15' }
+    post:
+      operationId: createResource15
+      tags: [resource15s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource15' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource15' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource15s/{id}:
+    get:
+      operationId: getResource15
+      tags: [resource15s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource15' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource15
+      tags: [resource15s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource15' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource15' }
+    delete:
+      operationId: deleteResource15
+      tags: [resource15s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource16s:
+    get:
+      operationId: listResource16s
+      tags: [resource16s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource16' }
+    post:
+      operationId: createResource16
+      tags: [resource16s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource16' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource16' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource16s/{id}:
+    get:
+      operationId: getResource16
+      tags: [resource16s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource16' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource16
+      tags: [resource16s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource16' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource16' }
+    delete:
+      operationId: deleteResource16
+      tags: [resource16s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource17s:
+    get:
+      operationId: listResource17s
+      tags: [resource17s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource17' }
+    post:
+      operationId: createResource17
+      tags: [resource17s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource17' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource17' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource17s/{id}:
+    get:
+      operationId: getResource17
+      tags: [resource17s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource17' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource17
+      tags: [resource17s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource17' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource17' }
+    delete:
+      operationId: deleteResource17
+      tags: [resource17s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource18s:
+    get:
+      operationId: listResource18s
+      tags: [resource18s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource18' }
+    post:
+      operationId: createResource18
+      tags: [resource18s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource18' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource18' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource18s/{id}:
+    get:
+      operationId: getResource18
+      tags: [resource18s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource18' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource18
+      tags: [resource18s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource18' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource18' }
+    delete:
+      operationId: deleteResource18
+      tags: [resource18s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource19s:
+    get:
+      operationId: listResource19s
+      tags: [resource19s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource19' }
+    post:
+      operationId: createResource19
+      tags: [resource19s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource19' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource19' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource19s/{id}:
+    get:
+      operationId: getResource19
+      tags: [resource19s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource19' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource19
+      tags: [resource19s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource19' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource19' }
+    delete:
+      operationId: deleteResource19
+      tags: [resource19s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+  /resource20s:
+    get:
+      operationId: listResource20s
+      tags: [resource20s]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource20' }
+    post:
+      operationId: createResource20
+      tags: [resource20s]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource20' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource20' }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /resource20s/{id}:
+    get:
+      operationId: getResource20
+      tags: [resource20s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource20' }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      operationId: updateResource20
+      tags: [resource20s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewResource20' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource20' }
+    delete:
+      operationId: deleteResource20
+      tags: [resource20s]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "204":
+          description: No Content
+components:
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: integer}
+        message: {type: string}
+        details: {type: string}
+    Resource1Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource1:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource1Status' }
+    Resource1:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource1Status' }
+        createdAt: {type: string, format: date-time}
+    Resource2Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource2:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource2Status' }
+    Resource2:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource2Status' }
+        createdAt: {type: string, format: date-time}
+    Resource3Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource3:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource3Status' }
+    Resource3:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource3Status' }
+        createdAt: {type: string, format: date-time}
+    Resource4Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource4:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource4Status' }
+    Resource4:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource4Status' }
+        createdAt: {type: string, format: date-time}
+    Resource5Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource5:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource5Status' }
+    Resource5:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource5Status' }
+        createdAt: {type: string, format: date-time}
+    Resource6Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource6:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource6Status' }
+    Resource6:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource6Status' }
+        createdAt: {type: string, format: date-time}
+    Resource7Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource7:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource7Status' }
+    Resource7:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource7Status' }
+        createdAt: {type: string, format: date-time}
+    Resource8Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource8:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource8Status' }
+    Resource8:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource8Status' }
+        createdAt: {type: string, format: date-time}
+    Resource9Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource9:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource9Status' }
+    Resource9:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource9Status' }
+        createdAt: {type: string, format: date-time}
+    Resource10Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource10:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource10Status' }
+    Resource10:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource10Status' }
+        createdAt: {type: string, format: date-time}
+    Resource11Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource11:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource11Status' }
+    Resource11:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource11Status' }
+        createdAt: {type: string, format: date-time}
+    Resource12Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource12:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource12Status' }
+    Resource12:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource12Status' }
+        createdAt: {type: string, format: date-time}
+    Resource13Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource13:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource13Status' }
+    Resource13:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource13Status' }
+        createdAt: {type: string, format: date-time}
+    Resource14Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource14:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource14Status' }
+    Resource14:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource14Status' }
+        createdAt: {type: string, format: date-time}
+    Resource15Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource15:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource15Status' }
+    Resource15:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource15Status' }
+        createdAt: {type: string, format: date-time}
+    Resource16Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource16:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource16Status' }
+    Resource16:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource16Status' }
+        createdAt: {type: string, format: date-time}
+    Resource17Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource17:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource17Status' }
+    Resource17:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource17Status' }
+        createdAt: {type: string, format: date-time}
+    Resource18Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource18:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource18Status' }
+    Resource18:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource18Status' }
+        createdAt: {type: string, format: date-time}
+    Resource19Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource19:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource19Status' }
+    Resource19:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource19Status' }
+        createdAt: {type: string, format: date-time}
+    Resource20Status:
+      type: string
+      enum: [active, pending, archived]
+    NewResource20:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: { $ref: '#/components/schemas/Resource20Status' }
+    Resource20:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        status: { $ref: '#/components/schemas/Resource20Status' }
+        createdAt: {type: string, format: date-time}

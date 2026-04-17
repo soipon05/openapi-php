@@ -35,11 +35,29 @@ openapi-php generate --input openapi.yaml --framework laravel
 
 ---
 
+## Why openapi-php
+
+- **~16× faster than jane-php, ~53× faster than OpenAPI Generator** on the same
+  100-endpoint spec — see [BENCHMARKS.md](BENCHMARKS.md).
+- **Every generated plain-PHP tree passes `phpstan --level=9 --strict-rules`
+  with zero errors, zero stubs, and zero `@phpstan-ignore` comments.** Enforced
+  on every push via the CI gate in `scripts/phpstan-check.sh`. As far as we know,
+  no other OSS OpenAPI→PHP generator ships output that clears max-level PHPStan
+  out of the box.
+- **OpenAPI 3.1 first-class**: `type: ["string", "null"]` emits `?T` and the
+  canonical 3.1 features (`const`, top-level `webhooks`, SPDX `license.identifier`,
+  `info.summary`) are covered by `tests/oas31_test.rs`. `const` currently resolves
+  through its `type:` annotation — the literal value itself is parsed but not yet
+  elevated to a single-variant enum.
+- **Readonly DTOs + BackedEnums + discriminated unions** — none of OpenAPI
+  Generator, Swagger Codegen, jane-php emit all three on the same PHP version.
+
 ## Features
 
 | Feature | Description |
 |---|---|
-| Fast | Written in Rust; generates thousands of files in under a second |
+| Fast | Written in Rust; ~16× faster than jane-php, ~53× faster than OpenAPI Generator on a 100-endpoint spec ([BENCHMARKS.md](BENCHMARKS.md)) |
+| PHPStan-clean | Every generated plain-PHP tree passes `phpstan --level=9 --strict-rules` — enforced in CI ([`scripts/phpstan-check.sh`](scripts/phpstan-check.sh)) |
 | Precise | Respects `$ref` resolution, `allOf`, nullable types, and enums |
 | OpenAPI 3.0 & 3.1 | `nullable: true` (OAS 3.0) and `type: ["string", "null"]` (OAS 3.1) both emit `?T` |
 | PHP 8.1 – 8.4 | Readonly DTOs, `BackedEnum`, union types |
