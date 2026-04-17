@@ -11,7 +11,11 @@ use App\Generated\Models\CreateItemRequest;
 use App\Generated\Models\Item;
 use App\Generated\Exceptions;
 
-/** Simple API API Client (auto-generated) */
+/**
+ * Simple API API Client (auto-generated)
+ *
+ * @phpstan-import-type ItemData from Item
+ */
 final class ApiClient
 {
     private const BASE_URL = 'https://api.example.com';
@@ -40,7 +44,7 @@ final class ApiClient
         $response = $this->httpClient->sendRequest($request);
         $this->assertSuccessful($response, 'GET', '/items');
         /** @var list<ItemData> $items */
-        $items = $this->decodeJson($response);
+        $items = $this->decodeJsonList($response);
         return array_map(fn(array $item) => Item::fromArray($item), $items);
     }
 
@@ -57,7 +61,9 @@ final class ApiClient
         $request = $request->withBody($stream)->withHeader('Content-Type', 'application/json');
         $response = $this->httpClient->sendRequest($request);
         $this->assertSuccessful($response, 'POST', '/items');
-        return Item::fromArray($this->decodeJson($response));
+        /** @var ItemData $data */
+        $data = $this->decodeJson($response);
+        return Item::fromArray($data);
     }
 
     /**
@@ -71,21 +77,26 @@ final class ApiClient
         $request = $this->requestFactory
             ->createRequest('GET', $this->baseUrl . sprintf('/items/%s', $id));
         $response = $this->httpClient->sendRequest($request);
-        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
+        $status = $response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
             $rawBody = (string) $response->getBody();
             if (strlen($rawBody) > 2048) {
                 $rawBody = substr($rawBody, 0, 2048);
             }
-            $errorBody = json_decode($rawBody, true) ?? [];
-            throw match ($response->getStatusCode()) {
-                404 => new Exceptions\GetItemNotFoundException(body: $rawBody),
-                default => new \RuntimeException(
-                    sprintf('HTTP %d: %s %s', $response->getStatusCode(), 'GET', '/items/{id}'),
-                    $response->getStatusCode(),
-                ),
-            };
+            $decoded = json_decode($rawBody, true);
+            /** @var array<string, mixed> $errorBody */
+            $errorBody = is_array($decoded) ? $decoded : [];
+            if ($status === 404) {
+                throw new Exceptions\GetItemNotFoundException(body: $rawBody);
+            }
+            throw new \RuntimeException(
+                sprintf('HTTP %d: %s %s', $status, 'GET', '/items/{id}'),
+                $status,
+            );
         }
-        return Item::fromArray($this->decodeJson($response));
+        /** @var ItemData $data */
+        $data = $this->decodeJson($response);
+        return Item::fromArray($data);
     }
 
     /**
@@ -100,41 +111,45 @@ final class ApiClient
         $this->assertSuccessful($response, 'DELETE', '/items/{id}');
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \UnexpectedValueException When the JSON body is not an object.
+     */
     private function decodeJson(\Psr\Http\Message\ResponseInterface $response): array
     {
-        /** @var array<string, mixed> $data */
         $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data)) {
+            throw new \UnexpectedValueException(
+                'Expected JSON object in response body, got ' . gettype($data),
+            );
+        }
+        /** @var array<string, mixed> $data */
         return $data;
     }
 
     /**
-     * Build a multipart/form-data body.
-     *
-     * @param array<string, string|\Psr\Http\Message\StreamInterface> $fields
-     * @return array{0: string, 1: string} [boundary, body]
+     * @return list<array<string, mixed>>
+     * @throws \UnexpectedValueException When the JSON body is not a list of objects.
      */
-    private function buildMultipartBody(array $fields): array
+    private function decodeJsonList(\Psr\Http\Message\ResponseInterface $response): array
     {
-        $boundary = bin2hex(random_bytes(16));
-        $body = '';
-        foreach ($fields as $name => $value) {
-            // Strip chars that would break Content-Disposition header syntax
-            $safeName = str_replace(["\r", "\n", '"', '\\'], '', (string) $name);
-            $body .= "--{$boundary}\r\n";
-            if ($value instanceof \Psr\Http\Message\StreamInterface) {
-                $body .= "Content-Disposition: form-data; name=\"{$safeName}\"; filename=\"{$safeName}\"\r\n";
-                $body .= "Content-Type: application/octet-stream\r\n\r\n";
-                $body .= (string) $value;
-            } else {
-                $body .= "Content-Disposition: form-data; name=\"{$safeName}\"\r\n\r\n";
-                $body .= (string) $value;
-            }
-            $body .= "\r\n";
+        $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data) || !array_is_list($data)) {
+            throw new \UnexpectedValueException(
+                'Expected JSON array in response body, got ' . gettype($data),
+            );
         }
-        $body .= "--{$boundary}--\r\n";
-        return [$boundary, $body];
+        foreach ($data as $i => $item) {
+            if (!is_array($item)) {
+                throw new \UnexpectedValueException(
+                    'Expected JSON object at index ' . $i . ', got ' . gettype($item),
+                );
+            }
+        }
+        /** @var list<array<string, mixed>> $data */
+        return $data;
     }
+
 
     private function assertSuccessful(
         \Psr\Http\Message\ResponseInterface $response,

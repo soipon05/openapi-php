@@ -19,6 +19,12 @@ use {{ namespace }}\Models\{{ import }};
 {% if description %}
  *
 {% endif %}
+{% for imp in phpstan_import_types %}
+ * @phpstan-import-type {{ imp }}Data from {{ imp }}
+{% endfor %}
+{% if phpstan_import_types %}
+ *
+{% endif %}
  * @phpstan-type {{ type_alias_name }} array{
 {% for entry in phpstan_from_shape %}
  *     {{ entry }},
@@ -105,11 +111,19 @@ final class {{ name }}
      */
     public function toArray(): array
     {
+{% if has_nullable_prop %}
         return array_filter([
 {% for prop in properties %}
             '{{ prop.name }}' => {{ prop.to_array_expr }},
 {% endfor %}
         ], fn($v) => $v !== null);
+{% else %}
+        return [
+{% for prop in properties %}
+            '{{ prop.name }}' => {{ prop.to_array_expr }},
+{% endfor %}
+        ];
+{% endif %}
     }
 {% endif %}
 }

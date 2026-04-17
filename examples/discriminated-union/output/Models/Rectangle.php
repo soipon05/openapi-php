@@ -50,10 +50,10 @@ readonly final class Rectangle
      */
     public function toArray(): array
     {
-        return array_filter([
+        return [
             'shapeType' => $this->shapeType,
             'width' => $this->width,
             'height' => $this->height,
-        ], fn($v) => $v !== null);
+        ];
     }
 }

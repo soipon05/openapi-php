@@ -48,6 +48,14 @@ pub struct ModelCtx {
     /// Emitted as `@phpstan-type PetData array{...}` before the class declaration.
     /// Empty string when the model has no properties (no shape to alias).
     pub type_alias_name: String,
+    /// Cross-file DTO class names (Object refs) whose `{name}Data` alias is referenced
+    /// inside this model's shape. Emitted as `@phpstan-import-type {name}Data from {name}`.
+    pub phpstan_import_types: Vec<String>,
+    /// true when at least one property is optional or nullable.
+    /// Controls whether `toArray()` wraps output in `array_filter(..., fn($v) => $v !== null)`.
+    /// When false, all keys are always present and the filter is a no-op that triggers
+    /// PHPStan's `notIdentical.alwaysTrue` at level 9.
+    pub has_nullable_prop: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -111,6 +119,33 @@ pub struct ClientCtx {
     pub model_refs: Vec<String>,
     pub endpoints: Vec<EndpointCtx>,
     pub has_exceptions: bool,
+    /// Model refs (`return_array_of`) whose PHPStan type alias is referenced in
+    /// `@var list<FooData>` comments inside the client. Emitted as
+    /// `@phpstan-import-type FooData from \Namespace\Models\Foo` on the class docblock.
+    pub phpstan_import_types: Vec<String>,
+    /// Set of private helper methods this client needs. The template iterates
+    /// and emits only the helpers actually referenced by the endpoints, so new
+    /// helper kinds (xml decode, form-urlencoded builder, ...) are added by
+    /// extending `ClientHelper` — no new `needs_*` bool per helper.
+    pub helpers: Vec<ClientHelper>,
+}
+
+/// Private helper methods that may be emitted onto the generated Client class.
+///
+/// The template uses minijinja's `in` operator (`{% if "decode_json" in helpers %}`)
+/// so the `snake_case` serde rename must line up with the template's string literals.
+#[derive(Debug, Serialize, PartialEq, Eq, Hash, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ClientHelper {
+    /// `decodeJson()` — required when any endpoint returns a single DTO.
+    DecodeJson,
+    /// `decodeJsonList()` — required when any endpoint returns `list<Foo>` or a bare array.
+    DecodeJsonList,
+    /// `buildMultipartBody()` — required when any endpoint uses `multipart/form-data`.
+    MultipartBody,
+    /// `assertSuccessful()` — required when at least one endpoint has no typed
+    /// error cases (the fallback path throws a plain `\RuntimeException`).
+    AssertSuccessful,
 }
 
 #[derive(Debug, Serialize)]
@@ -124,15 +159,17 @@ pub struct EndpointCtx {
     pub summary: Option<String>,
     pub deprecated: bool,
     /// Scalar (non-array) query parameters — serialised via `http_build_query`.
+    /// Exposed as a Vec so the template can introspect param names (e.g. for
+    /// snapshot tests); the actual PHP is pre-rendered into `query_string_block`.
     pub query_params: Vec<QueryParamCtx>,
-    pub has_query_params: bool,
-    /// true when at least one scalar query param is optional (not required).
-    pub has_optional_query_params: bool,
+    /// Pre-rendered PHP block that assigns `$queryStr` for this endpoint.
+    /// Built in Rust so the template doesn't have to reason about the
+    /// `optional × bool-cast` matrix — the template just drops it verbatim.
+    /// Empty string when the endpoint has no scalar query params.
+    pub query_string_block: String,
     /// Array-type query parameters — serialised as repeated keys or comma-joined.
     pub array_query_params: Vec<ArrayQueryParamCtx>,
-    pub has_array_query_params: bool,
     pub header_params: Vec<QueryParamCtx>,
-    pub has_header_params: bool,
     pub path_expr: String,
     pub has_request_body: bool,
     pub request_body_is_dto: bool,
@@ -165,9 +202,11 @@ pub struct ErrorCaseCtx {
     pub status_code: u16,
     /// short exception class name, e.g. "GetUserInfoNotFoundException"
     pub exception_class: String,
-    /// PHP expression to construct the typed error, e.g. "Error::fromArray($body)"
-    /// None when there is no schema
-    pub error_expr: Option<String>,
+    /// Short class name of the error DTO (e.g. "Error"). When `Some`, the
+    /// template narrows the response body to `{name}Data` before calling
+    /// `{name}::fromArray(...)`. When `None`, the exception is constructed
+    /// from the raw body string instead.
+    pub error_model: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -350,6 +389,16 @@ pub fn build_model_ctx(
         })
         .collect();
 
+    // PHP deprecates (and will later reject) required parameters declared after
+    // optional ones. OpenAPI `properties` preserve declaration order — which
+    // authors often write with optionals before requireds — so we re-sort the
+    // constructor arg list here: required first, defaulted last.
+    // Stable sort preserves the author's original ordering within each group.
+    // (`PropertyCtx.required` is already `prop.required && !prop.nullable`, so
+    // nullable props are never in the required group — no extra check needed.)
+    let mut properties = properties;
+    properties.sort_by_key(|p| !p.required);
+
     let phpstan_from_shape: Vec<String> = properties.iter().map(phpstan_from_entry).collect();
     let phpstan_to_shape: Vec<String> = properties.iter().map(phpstan_to_entry).collect();
     let has_datetime_prop = schema
@@ -367,6 +416,24 @@ pub fn build_model_ctx(
         format!("{}Data", sanitize_php_ident(name))
     };
 
+    // Collect DTO refs referenced inside the phpstan shape (as `{name}Data`).
+    // Object and Union refs both surface as `{name}Data` in shapes and need importing.
+    // Enum refs resolve to their backing scalar and do not need an import.
+    let phpstan_import_types: Vec<String> = use_imports
+        .iter()
+        .filter(|imp| {
+            matches!(
+                schemas.get(imp.as_str()),
+                Some(ResolvedSchema::Object(_)) | Some(ResolvedSchema::Union(_))
+            )
+        })
+        .cloned()
+        .collect();
+
+    let has_nullable_prop = properties
+        .iter()
+        .any(|p| !p.required || p.php_type.starts_with('?'));
+
     ModelCtx {
         name: sanitize_php_ident(name),
         namespace: namespace.to_string(),
@@ -379,6 +446,8 @@ pub fn build_model_ctx(
         has_datetime_prop,
         datetime_throws,
         type_alias_name,
+        phpstan_import_types,
+        has_nullable_prop,
     }
 }
 
@@ -506,6 +575,58 @@ pub fn build_union_ctx(
     })
 }
 
+/// Render the `$queryStr = ...` PHP block for an endpoint, handling the
+/// full `optional × bool-cast` matrix. Keeping this in Rust lets the template
+/// collapse three near-duplicate branches to a single `{{ ep.query_string_block | safe }}`
+/// and keeps the same `for qp in params` loop out of Jinja entirely.
+///
+/// Returns an empty string when there are no scalar query params (the caller
+/// falls back to the array-param-only path).
+fn build_query_string_block(
+    query_params: &[QueryParamCtx],
+    has_optional: bool,
+    has_bool: bool,
+) -> String {
+    if query_params.is_empty() {
+        return String::new();
+    }
+    let entries: String = query_params
+        .iter()
+        .map(|qp| format!("            '{}' => ${},\n", qp.name, qp.php_name))
+        .collect();
+
+    let mut out = String::new();
+    if has_optional {
+        // Filter nulls first, then optionally cast bools, then http_build_query.
+        out.push_str("        $queryParams = array_filter([\n");
+        out.push_str(&entries);
+        out.push_str("        ], fn($v) => $v !== null);\n");
+        if has_bool {
+            out.push_str(
+                "        $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams);\n",
+            );
+        }
+        out.push_str(
+            "        $queryStr = count($queryParams) > 0 ? http_build_query($queryParams) : '';",
+        );
+    } else if has_bool {
+        // All required; cast bools inline inside http_build_query's input.
+        out.push_str(
+            "        $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, [\n",
+        );
+        out.push_str(&entries);
+        out.push_str("        ]);\n");
+        out.push_str("        $queryStr = http_build_query($queryParams);");
+    } else {
+        // All required, no bool params — plain http_build_query is enough.
+        out.push_str("        $queryParams = [\n");
+        out.push_str(&entries);
+        out.push_str("        ];\n");
+        out.push_str("        $queryStr = http_build_query($queryParams);");
+    }
+    out
+}
+
 /// Maps a numeric HTTP status code to a PHP exception class name suffix.
 fn status_code_suffix(code: u16) -> &'static str {
     match code {
@@ -604,9 +725,17 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
         .iter()
         .flat_map(|ep| {
             let mut refs = Vec::new();
-            // Response DTO
-            if let Some(ResolvedSchema::Ref(n)) = &ep.response {
-                refs.push(sanitize_php_ident(n));
+            // Response DTO — single ref *or* array-of-ref. Array responses
+            // surface as `ResolvedSchema::Array { items: Ref(n) }` and must
+            // emit the same `use` import so `Foo::fromArray(...)` resolves.
+            match &ep.response {
+                Some(ResolvedSchema::Ref(n)) => refs.push(sanitize_php_ident(n)),
+                Some(ResolvedSchema::Array(arr)) => {
+                    if let ResolvedSchema::Ref(n) = arr.items.as_ref() {
+                        refs.push(sanitize_php_ident(n));
+                    }
+                }
+                _ => {}
             }
             // Error response DTOs
             for er in &ep.error_responses {
@@ -675,6 +804,19 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
                 })
                 .collect();
 
+            let has_bool_query_param = ep.query_params.iter().any(|p| {
+                matches!(
+                    &p.schema,
+                    ResolvedSchema::Primitive(prim) if prim.php_type == PhpPrimitive::Bool
+                )
+            });
+            let has_optional_query_params = query_params.iter().any(|p| !p.required);
+            let query_string_block = build_query_string_block(
+                &query_params,
+                has_optional_query_params,
+                has_bool_query_param,
+            );
+
             let array_query_params: Vec<ArrayQueryParamCtx> = ep
                 .query_params
                 .iter()
@@ -713,7 +855,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
                     let suffix = status_code_suffix(er.status_code);
                     let exception_class =
                         sanitize_php_ident(&format!("{operation_pascal}{suffix}"));
-                    let error_expr = match &er.schema {
+                    let error_model = match &er.schema {
                         Some(ResolvedSchema::Ref(n)) => {
                             let is_enum = spec
                                 .schemas
@@ -722,8 +864,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
                             if is_enum {
                                 None
                             } else {
-                                let safe_n = sanitize_php_ident(n);
-                                Some(format!("{safe_n}::fromArray($errorBody)"))
+                                Some(sanitize_php_ident(n))
                             }
                         }
                         _ => None,
@@ -731,7 +872,7 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
                     ErrorCaseCtx {
                         status_code: er.status_code,
                         exception_class,
-                        error_expr,
+                        error_model,
                     }
                 })
                 .collect();
@@ -745,12 +886,9 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
                 has_json,
                 summary: ep.summary.as_deref().map(sanitize_phpdoc),
                 deprecated: ep.deprecated,
-                has_query_params: !query_params.is_empty(),
-                has_optional_query_params: query_params.iter().any(|p| !p.required),
+                query_string_block,
                 query_params,
-                has_array_query_params: !array_query_params.is_empty(),
                 array_query_params,
-                has_header_params: !ep.header_params.is_empty(),
                 header_params,
                 path_expr,
                 has_request_body: ep.request_body.is_some(),
@@ -780,6 +918,46 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
         .collect::<Vec<_>>();
 
     let has_exceptions = endpoints.iter().any(|ep| !ep.error_cases.is_empty());
+    let mut helpers: Vec<ClientHelper> = Vec::new();
+    if endpoints.iter().any(|ep| ep.return_ref.is_some()) {
+        helpers.push(ClientHelper::DecodeJson);
+    }
+    if endpoints
+        .iter()
+        .any(|ep| ep.return_array_of.is_some() || ep.return_array)
+    {
+        helpers.push(ClientHelper::DecodeJsonList);
+    }
+    if endpoints.iter().any(|ep| ep.request_body_mode == "multipart") {
+        helpers.push(ClientHelper::MultipartBody);
+    }
+    // `assertSuccessful()` is the fallback for endpoints without typed error cases.
+    // Skip emitting it entirely if every endpoint declares error cases (the typed
+    // dispatch already throws on every non-2xx path).
+    if endpoints.iter().any(|ep| ep.error_cases.is_empty()) {
+        helpers.push(ClientHelper::AssertSuccessful);
+    }
+
+    // Models whose PHPStan `{Name}Data` alias is used by the client: narrowed
+    // with `/** @var FooData */` for single DTOs and `/** @var list<FooData> */`
+    // for list endpoints. Error-response DTOs that appear as `Foo::fromArray(...)`
+    // in the typed-error dispatch also need the alias imported.
+    let mut phpstan_import_types: Vec<String> = Vec::new();
+    for ep in &endpoints {
+        if let Some(r) = &ep.return_ref {
+            phpstan_import_types.push(r.clone());
+        }
+        if let Some(r) = &ep.return_array_of {
+            phpstan_import_types.push(r.clone());
+        }
+        for ec in &ep.error_cases {
+            if let Some(m) = &ec.error_model {
+                phpstan_import_types.push(m.clone());
+            }
+        }
+    }
+    phpstan_import_types.sort();
+    phpstan_import_types.dedup();
 
     ClientCtx {
         namespace: namespace.to_string(),
@@ -790,6 +968,8 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
         model_refs,
         endpoints,
         has_exceptions,
+        phpstan_import_types,
+        helpers,
     }
 }
 

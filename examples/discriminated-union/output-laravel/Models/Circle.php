@@ -43,9 +43,9 @@ readonly final class Circle
      */
     public function toArray(): array
     {
-        return array_filter([
+        return [
             'shapeType' => $this->shapeType,
             'radius' => $this->radius,
-        ], fn($v) => $v !== null);
+        ];
     }
 }

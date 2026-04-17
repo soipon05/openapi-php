@@ -1,0 +1,11 @@
+includes:
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+
+parameters:
+    level: 9
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false
+    # Exceptions' constructors accept either the typed error DTO or a plain
+    # string body (the default case). We construct with named arguments in the
+    # client, which PHPStan level 9 accepts without further tuning.

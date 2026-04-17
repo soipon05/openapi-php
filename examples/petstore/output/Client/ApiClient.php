@@ -12,7 +12,13 @@ use App\Petstore\Models\NewPet;
 use App\Petstore\Models\Pet;
 use App\Petstore\Exceptions;
 
-/** Fictional Petstore API API Client (auto-generated) */
+/**
+ * Fictional Petstore API API Client (auto-generated)
+ *
+ * @phpstan-import-type ErrorData from Error
+ *
+ * @phpstan-import-type PetData from Pet
+ */
 final class ApiClient
 {
     private const BASE_URL = 'https://petstore.example.com/v1';
@@ -41,14 +47,13 @@ final class ApiClient
             'limit' => $limit,
             'offset' => $offset,
         ], fn($v) => $v !== null);
-        $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams);
-        $queryStr = !empty($queryParams) ? http_build_query($queryParams) : '';
+        $queryStr = count($queryParams) > 0 ? http_build_query($queryParams) : '';
         $uri = $this->baseUrl . '/pets' . ($queryStr !== '' ? '?' . $queryStr : '');
         $request = $this->requestFactory->createRequest('GET', $uri);
         $response = $this->httpClient->sendRequest($request);
         $this->assertSuccessful($response, 'GET', '/pets');
         /** @var list<PetData> $items */
-        $items = $this->decodeJson($response);
+        $items = $this->decodeJsonList($response);
         return array_map(fn(array $item) => Pet::fromArray($item), $items);
     }
 
@@ -67,21 +72,28 @@ final class ApiClient
         $stream = $this->streamFactory->createStream(json_encode($body->toArray(), JSON_THROW_ON_ERROR));
         $request = $request->withBody($stream)->withHeader('Content-Type', 'application/json');
         $response = $this->httpClient->sendRequest($request);
-        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
+        $status = $response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
             $rawBody = (string) $response->getBody();
             if (strlen($rawBody) > 2048) {
                 $rawBody = substr($rawBody, 0, 2048);
             }
-            $errorBody = json_decode($rawBody, true) ?? [];
-            throw match ($response->getStatusCode()) {
-                400 => new Exceptions\CreatePetBadRequestException(Error::fromArray($errorBody)),
-                default => new \RuntimeException(
-                    sprintf('HTTP %d: %s %s', $response->getStatusCode(), 'POST', '/pets'),
-                    $response->getStatusCode(),
-                ),
-            };
+            $decoded = json_decode($rawBody, true);
+            /** @var array<string, mixed> $errorBody */
+            $errorBody = is_array($decoded) ? $decoded : [];
+            if ($status === 400) {
+                /** @var ErrorData $body */
+                $body = $errorBody;
+                throw new Exceptions\CreatePetBadRequestException(Error::fromArray($body));
+            }
+            throw new \RuntimeException(
+                sprintf('HTTP %d: %s %s', $status, 'POST', '/pets'),
+                $status,
+            );
         }
-        return Pet::fromArray($this->decodeJson($response));
+        /** @var PetData $data */
+        $data = $this->decodeJson($response);
+        return Pet::fromArray($data);
     }
 
     /**
@@ -97,21 +109,28 @@ final class ApiClient
         $request = $this->requestFactory
             ->createRequest('GET', $this->baseUrl . sprintf('/pets/%s', $petId));
         $response = $this->httpClient->sendRequest($request);
-        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
+        $status = $response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
             $rawBody = (string) $response->getBody();
             if (strlen($rawBody) > 2048) {
                 $rawBody = substr($rawBody, 0, 2048);
             }
-            $errorBody = json_decode($rawBody, true) ?? [];
-            throw match ($response->getStatusCode()) {
-                404 => new Exceptions\GetPetByIdNotFoundException(Error::fromArray($errorBody)),
-                default => new \RuntimeException(
-                    sprintf('HTTP %d: %s %s', $response->getStatusCode(), 'GET', '/pets/{petId}'),
-                    $response->getStatusCode(),
-                ),
-            };
+            $decoded = json_decode($rawBody, true);
+            /** @var array<string, mixed> $errorBody */
+            $errorBody = is_array($decoded) ? $decoded : [];
+            if ($status === 404) {
+                /** @var ErrorData $body */
+                $body = $errorBody;
+                throw new Exceptions\GetPetByIdNotFoundException(Error::fromArray($body));
+            }
+            throw new \RuntimeException(
+                sprintf('HTTP %d: %s %s', $status, 'GET', '/pets/{petId}'),
+                $status,
+            );
         }
-        return Pet::fromArray($this->decodeJson($response));
+        /** @var PetData $data */
+        $data = $this->decodeJson($response);
+        return Pet::fromArray($data);
     }
 
     /**
@@ -129,21 +148,28 @@ final class ApiClient
         $stream = $this->streamFactory->createStream(json_encode($body->toArray(), JSON_THROW_ON_ERROR));
         $request = $request->withBody($stream)->withHeader('Content-Type', 'application/json');
         $response = $this->httpClient->sendRequest($request);
-        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
+        $status = $response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
             $rawBody = (string) $response->getBody();
             if (strlen($rawBody) > 2048) {
                 $rawBody = substr($rawBody, 0, 2048);
             }
-            $errorBody = json_decode($rawBody, true) ?? [];
-            throw match ($response->getStatusCode()) {
-                404 => new Exceptions\UpdatePetNotFoundException(Error::fromArray($errorBody)),
-                default => new \RuntimeException(
-                    sprintf('HTTP %d: %s %s', $response->getStatusCode(), 'PUT', '/pets/{petId}'),
-                    $response->getStatusCode(),
-                ),
-            };
+            $decoded = json_decode($rawBody, true);
+            /** @var array<string, mixed> $errorBody */
+            $errorBody = is_array($decoded) ? $decoded : [];
+            if ($status === 404) {
+                /** @var ErrorData $body */
+                $body = $errorBody;
+                throw new Exceptions\UpdatePetNotFoundException(Error::fromArray($body));
+            }
+            throw new \RuntimeException(
+                sprintf('HTTP %d: %s %s', $status, 'PUT', '/pets/{petId}'),
+                $status,
+            );
         }
-        return Pet::fromArray($this->decodeJson($response));
+        /** @var PetData $data */
+        $data = $this->decodeJson($response);
+        return Pet::fromArray($data);
     }
 
     /**
@@ -158,57 +184,66 @@ final class ApiClient
         $request = $this->requestFactory
             ->createRequest('DELETE', $this->baseUrl . sprintf('/pets/%s', $petId));
         $response = $this->httpClient->sendRequest($request);
-        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
+        $status = $response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
             $rawBody = (string) $response->getBody();
             if (strlen($rawBody) > 2048) {
                 $rawBody = substr($rawBody, 0, 2048);
             }
-            $errorBody = json_decode($rawBody, true) ?? [];
-            throw match ($response->getStatusCode()) {
-                404 => new Exceptions\DeletePetNotFoundException(Error::fromArray($errorBody)),
-                default => new \RuntimeException(
-                    sprintf('HTTP %d: %s %s', $response->getStatusCode(), 'DELETE', '/pets/{petId}'),
-                    $response->getStatusCode(),
-                ),
-            };
+            $decoded = json_decode($rawBody, true);
+            /** @var array<string, mixed> $errorBody */
+            $errorBody = is_array($decoded) ? $decoded : [];
+            if ($status === 404) {
+                /** @var ErrorData $body */
+                $body = $errorBody;
+                throw new Exceptions\DeletePetNotFoundException(Error::fromArray($body));
+            }
+            throw new \RuntimeException(
+                sprintf('HTTP %d: %s %s', $status, 'DELETE', '/pets/{petId}'),
+                $status,
+            );
         }
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     * @throws \UnexpectedValueException When the JSON body is not an object.
+     */
     private function decodeJson(\Psr\Http\Message\ResponseInterface $response): array
     {
-        /** @var array<string, mixed> $data */
         $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data)) {
+            throw new \UnexpectedValueException(
+                'Expected JSON object in response body, got ' . gettype($data),
+            );
+        }
+        /** @var array<string, mixed> $data */
         return $data;
     }
 
     /**
-     * Build a multipart/form-data body.
-     *
-     * @param array<string, string|\Psr\Http\Message\StreamInterface> $fields
-     * @return array{0: string, 1: string} [boundary, body]
+     * @return list<array<string, mixed>>
+     * @throws \UnexpectedValueException When the JSON body is not a list of objects.
      */
-    private function buildMultipartBody(array $fields): array
+    private function decodeJsonList(\Psr\Http\Message\ResponseInterface $response): array
     {
-        $boundary = bin2hex(random_bytes(16));
-        $body = '';
-        foreach ($fields as $name => $value) {
-            // Strip chars that would break Content-Disposition header syntax
-            $safeName = str_replace(["\r", "\n", '"', '\\'], '', (string) $name);
-            $body .= "--{$boundary}\r\n";
-            if ($value instanceof \Psr\Http\Message\StreamInterface) {
-                $body .= "Content-Disposition: form-data; name=\"{$safeName}\"; filename=\"{$safeName}\"\r\n";
-                $body .= "Content-Type: application/octet-stream\r\n\r\n";
-                $body .= (string) $value;
-            } else {
-                $body .= "Content-Disposition: form-data; name=\"{$safeName}\"\r\n\r\n";
-                $body .= (string) $value;
-            }
-            $body .= "\r\n";
+        $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data) || !array_is_list($data)) {
+            throw new \UnexpectedValueException(
+                'Expected JSON array in response body, got ' . gettype($data),
+            );
         }
-        $body .= "--{$boundary}--\r\n";
-        return [$boundary, $body];
+        foreach ($data as $i => $item) {
+            if (!is_array($item)) {
+                throw new \UnexpectedValueException(
+                    'Expected JSON object at index ' . $i . ', got ' . gettype($item),
+                );
+            }
+        }
+        /** @var list<array<string, mixed>> $data */
+        return $data;
     }
+
 
     private function assertSuccessful(
         \Psr\Http\Message\ResponseInterface $response,

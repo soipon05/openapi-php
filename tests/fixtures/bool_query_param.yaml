@@ -1,0 +1,23 @@
+openapi: "3.1.0"
+info:
+  title: BoolQ
+  version: "1.0.0"
+paths:
+  /things:
+    get:
+      operationId: listThings
+      parameters:
+        - name: active
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object

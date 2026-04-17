@@ -11,6 +11,9 @@ use App\Petstore\Models\Tag;
 /**
  * Payload required to create or replace a pet record.
  *
+ * @phpstan-import-type CategoryData from Category
+ * @phpstan-import-type TagData from Tag
+ *
  * @phpstan-type NewPetData array{
  *     'name': string,
  *     'status'?: string|null,

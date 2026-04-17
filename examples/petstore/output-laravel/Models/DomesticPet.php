@@ -11,6 +11,9 @@ use App\Petstore\Models\Tag;
 /**
  * A domesticated pet that extends Pet with owner contact information. Demonstrates allOf schema composition.
  *
+ * @phpstan-import-type CategoryData from Category
+ * @phpstan-import-type TagData from Tag
+ *
  * @phpstan-type DomesticPetData array{
  *     'id': int,
  *     'name': string,

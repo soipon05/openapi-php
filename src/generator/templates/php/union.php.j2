@@ -14,6 +14,8 @@ use {{ namespace }}\Models\{{ import }};
 {% for import in use_imports %}
  * @phpstan-import-type {{ import }}Data from {{ import }}
 {% endfor %}
+ *
+ * @phpstan-type {{ name }}Data {{ phpstan_param_type }}
  */
 {% if use_readonly_class %}
 final readonly class {{ name }}
@@ -36,17 +38,19 @@ final class {{ name }}
     /** @param {{ phpstan_param_type }} $data */
     public static function fromArray(array $data): self
     {
-        return match ((string) ($data['{{ discriminator }}'] ?? '')) {
+        $disc = (string) ($data['{{ discriminator }}'] ?? '');
 {% for variant in variants %}
-            '{{ variant.match_key }}' => new self({{ variant.class_name }}::fromArray($data)),
+        if ($disc === '{{ variant.match_key }}') {
+            /** @var {{ variant.class_name }}Data $data */
+            return new self({{ variant.class_name }}::fromArray($data));
+        }
 {% endfor %}
-            default => throw new \UnexpectedValueException(
-                '{{ name }}: unknown discriminator value "' . ($data['{{ discriminator }}'] ?? '') . '"',
-            ),
-        };
+        throw new \UnexpectedValueException(
+            '{{ name }}: unknown discriminator value "' . $disc . '"',
+        );
     }
 
-    /** @return array<string, mixed> */
+    /** @return {{ name }}Data */
     public function toArray(): array
     {
         return $this->value->toArray();

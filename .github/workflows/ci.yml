@@ -106,3 +106,25 @@ jobs:
             --namespace "App\\Generated" \
             --framework laravel
           find /tmp/gen/discriminated-union-laravel -name "*.php" -print0 | xargs -0 php -l | grep -v "No syntax errors" || true
+
+      # ── PHPStan level 9 + strict-rules on generated plain-PHP output ────────
+      # The strongest quality claim we make: every plain-PHP tree we generate
+      # passes PHPStan at max level with strict-rules enabled, with no
+      # silencers, stubs, or `@phpstan-ignore` comments anywhere in the output.
+      # Laravel output depends on a bootstrapped Laravel environment to resolve
+      # framework classes (FormRequest, Resource, Route) and is intentionally
+      # out of scope for this gate — users type-check it inside their own app.
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: scripts/.phpstan-workspace/vendor
+          key: ${{ runner.os }}-phpstan-${{ hashFiles('scripts/composer.json') }}
+
+      - name: PHPStan level 9 (generated plain PHP + split + union)
+        run: |
+          ./scripts/phpstan-check.sh \
+            /tmp/gen/simple \
+            /tmp/gen/petstore \
+            /tmp/gen/petstore-split \
+            /tmp/gen/discriminated-union

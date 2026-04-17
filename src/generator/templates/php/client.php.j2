@@ -16,7 +16,13 @@ use {{ namespace }}\Models\{{ model_ref }};
 use {{ namespace }}\Exceptions;
 {% endif %}
 
-/** {{ title }} API Client (auto-generated) */
+/**
+ * {{ title }} API Client (auto-generated)
+{% for imp in phpstan_import_types %}
+ *
+ * @phpstan-import-type {{ imp }}Data from {{ imp }}
+{% endfor %}
+ */
 final class {{ class_name }}
 {
     private const BASE_URL = '{{ base_url }}';
@@ -59,22 +65,9 @@ final class {{ class_name }}
 {% endif %}
     public function {{ ep.fn_name }}({{ ep.params_str }}): {{ ep.return_type }}
     {
-{% if ep.has_query_params or ep.has_array_query_params %}
-{% if ep.has_query_params and ep.has_optional_query_params %}
-        $queryParams = array_filter([
-{% for qp in ep.query_params %}
-            '{{ qp.name }}' => ${{ qp.php_name }},
-{% endfor %}
-        ], fn($v) => $v !== null);
-        $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams);
-        $queryStr = !empty($queryParams) ? http_build_query($queryParams) : '';
-{% elif ep.has_query_params %}
-        $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, [
-{% for qp in ep.query_params %}
-            '{{ qp.name }}' => ${{ qp.php_name }},
-{% endfor %}
-        ]);
-        $queryStr = http_build_query($queryParams);
+{% if ep.query_params or ep.array_query_params %}
+{% if ep.query_string_block %}
+{{ ep.query_string_block }}
 {% else %}
         $queryStr = '';
 {% endif %}
@@ -99,7 +92,7 @@ final class {{ class_name }}
         $request = $this->requestFactory
             ->createRequest('{{ ep.method_str }}', $this->baseUrl . {{ ep.path_expr }});
 {% endif %}
-{% if ep.has_header_params %}
+{% if ep.header_params %}
 {% for hp in ep.header_params %}
 {% if hp.required %}
         $request = $request->withHeader('{{ hp.name }}', (string) ${{ hp.php_name }});
@@ -128,45 +121,93 @@ final class {{ class_name }}
 {% endif %}
         $response = $this->httpClient->sendRequest($request);
 {% if ep.error_cases %}
-        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
+        $status = $response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
             $rawBody = (string) $response->getBody();
             if (strlen($rawBody) > 2048) {
                 $rawBody = substr($rawBody, 0, 2048);
             }
-            $errorBody = json_decode($rawBody, true) ?? [];
-            throw match ($response->getStatusCode()) {
+            $decoded = json_decode($rawBody, true);
+            /** @var array<string, mixed> $errorBody */
+            $errorBody = is_array($decoded) ? $decoded : [];
 {% for ec in ep.error_cases %}
-                {{ ec.status_code }} => new Exceptions\{{ ec.exception_class }}({% if ec.error_expr %}{{ ec.error_expr }}{% else %}body: $rawBody{% endif %}),
+            if ($status === {{ ec.status_code }}) {
+{% if ec.error_model %}
+                /** @var {{ ec.error_model }}Data $body */
+                $body = $errorBody;
+                throw new Exceptions\{{ ec.exception_class }}({{ ec.error_model }}::fromArray($body));
+{% else %}
+                throw new Exceptions\{{ ec.exception_class }}(body: $rawBody);
+{% endif %}
+            }
 {% endfor %}
-                default => new \RuntimeException(
-                    sprintf('HTTP %d: %s %s', $response->getStatusCode(), '{{ ep.method_str }}', '{{ ep.path }}'),
-                    $response->getStatusCode(),
-                ),
-            };
+            throw new \RuntimeException(
+                sprintf('HTTP %d: %s %s', $status, '{{ ep.method_str }}', '{{ ep.path }}'),
+                $status,
+            );
         }
 {% else %}
         $this->assertSuccessful($response, '{{ ep.method_str }}', '{{ ep.path }}');
 {% endif %}
 {% if ep.return_ref %}
-        return {{ ep.return_ref }}::fromArray($this->decodeJson($response));
+        /** @var {{ ep.return_ref }}Data $data */
+        $data = $this->decodeJson($response);
+        return {{ ep.return_ref }}::fromArray($data);
 {% elif ep.return_array_of %}
         /** @var list<{{ ep.return_array_of }}Data> $items */
-        $items = $this->decodeJson($response);
+        $items = $this->decodeJsonList($response);
         return array_map(fn(array $item) => {{ ep.return_array_of }}::fromArray($item), $items);
 {% elif ep.return_array %}
-        return $this->decodeJson($response);
+        return $this->decodeJsonList($response);
 {% endif %}
     }
 {% endfor %}
 
-    /** @return array<string, mixed> */
+{% if "decode_json" in helpers %}
+    /**
+     * @return array<string, mixed>
+     * @throws \UnexpectedValueException When the JSON body is not an object.
+     */
     private function decodeJson(\Psr\Http\Message\ResponseInterface $response): array
     {
-        /** @var array<string, mixed> $data */
         $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data)) {
+            throw new \UnexpectedValueException(
+                'Expected JSON object in response body, got ' . gettype($data),
+            );
+        }
+        /** @var array<string, mixed> $data */
         return $data;
     }
 
+{% endif %}
+{% if "decode_json_list" in helpers %}
+    /**
+     * @return list<array<string, mixed>>
+     * @throws \UnexpectedValueException When the JSON body is not a list of objects.
+     */
+    private function decodeJsonList(\Psr\Http\Message\ResponseInterface $response): array
+    {
+        $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data) || !array_is_list($data)) {
+            throw new \UnexpectedValueException(
+                'Expected JSON array in response body, got ' . gettype($data),
+            );
+        }
+        foreach ($data as $i => $item) {
+            if (!is_array($item)) {
+                throw new \UnexpectedValueException(
+                    'Expected JSON object at index ' . $i . ', got ' . gettype($item),
+                );
+            }
+        }
+        /** @var list<array<string, mixed>> $data */
+        return $data;
+    }
+
+{% endif %}
+
+{% if "multipart_body" in helpers %}
     /**
      * Build a multipart/form-data body.
      *
@@ -195,6 +236,8 @@ final class {{ class_name }}
         return [$boundary, $body];
     }
 
+{% endif %}
+{% if "assert_successful" in helpers %}
     private function assertSuccessful(
         \Psr\Http\Message\ResponseInterface $response,
         string $method,
@@ -209,4 +252,5 @@ final class {{ class_name }}
             $status,
         );
     }
+{% endif %}
 }

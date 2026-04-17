@@ -1,2 +1,6 @@
 /target
 _validation/
+# PHPStan gate workspace (composer install, phpstan artifacts)
+/scripts/.phpstan-workspace/
+/scripts/vendor/
+/scripts/composer.lock

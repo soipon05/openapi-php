@@ -9,6 +9,8 @@ use App\Example\Models\Shape;
 /**
  * An image resource. The `shape` property is a nullable reference to a Shape — demonstrates the oneOf + null-sentinel pattern.
  *
+ * @phpstan-import-type ShapeData from Shape
+ *
  * @phpstan-type ImageData array{
  *     'id': int,
  *     'url': string,

@@ -968,25 +968,27 @@ fn query_params_use_array_filter_to_skip_nulls() {
         client.contains("array_filter([") && client.contains("], fn($v) => $v !== null)"),
         "Query params must be filtered through array_filter to drop nulls:\n{client}"
     );
-    // L1: scalar params → $queryStr via http_build_query, then conditional '?' prefix
+    // L1: scalar params → $queryStr via http_build_query, then conditional '?' prefix.
+    // `count($queryParams) > 0` instead of `!empty()` for PHPStan strict-rules compliance.
     assert!(
-        client.contains("$queryStr = !empty($queryParams) ? http_build_query($queryParams) : '';"),
+        client.contains(
+            "$queryStr = count($queryParams) > 0 ? http_build_query($queryParams) : '';"
+        ),
         "Query string must assign to $queryStr via http_build_query:\n{client}"
     );
     assert!(
         client.contains("($queryStr !== '' ? '?' . $queryStr : '')"),
         "URI must append query string conditionally:\n{client}"
     );
-    // L2: bool false must not produce empty query string — cast via array_map/is_bool
-    assert!(
-        client.contains(
-            "array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams)"
-        ),
-        "Bool query params must be cast to 'true'/'false' strings:\n{client}"
-    );
     assert!(
         !client.contains("'?' . http_build_query(["),
         "Must not pass raw array directly to http_build_query:\n{client}"
+    );
+    // petstore has no bool query params, so the is_bool cast must NOT appear
+    // (dead code would trip PHPStan strict-rules' function.impossibleType).
+    assert!(
+        !client.contains("is_bool($v)"),
+        "No bool query params → must not emit is_bool dispatch:\n{client}"
     );
 }
 
@@ -1152,48 +1154,46 @@ fn all_required_query_params_skip_array_filter() {
     let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
     let ctx = build_client_ctx(&spec, "App\\Test", TagFilter::All);
 
-    // listPets has optional params → has_optional_query_params = true
+    // listPets has optional params (status, limit, offset) → the rendered
+    // block must include `array_filter` to strip unset parameters.
     let list_pets = ctx
         .endpoints
         .iter()
         .find(|ep| ep.fn_name == "listPets")
         .unwrap();
+    assert!(!list_pets.query_params.is_empty(), "listPets has query params");
     assert!(
-        list_pets.has_optional_query_params,
-        "listPets has optional query params, flag must be true"
+        list_pets.query_string_block.contains("array_filter"),
+        "optional query params must flow through array_filter:\n{}",
+        list_pets.query_string_block
     );
-    assert!(list_pets.has_query_params, "listPets has query params");
 }
 
-// ─── L2: bool false query params must not produce empty string ────────────────
+// ─── L2: bool query params opt-in the is_bool → 'true'/'false' cast ───────────
 
 /// `http_build_query(['active' => false])` produces `active=` (empty string), not
-/// `active=false`. The generated client must cast bool params through `is_bool` so
-/// that `false` becomes the string `'false'` (and `true` becomes `'true'`).
+/// `active=false`. When at least one query param is boolean-typed, the client must
+/// cast bool params through `is_bool` so that `false` becomes the string `'false'`
+/// (and `true` becomes `'true'`). When no query params are bool, the cast must NOT
+/// be emitted — otherwise it becomes dead code and trips PHPStan strict-rules
+/// (`function.impossibleType`).
 #[test]
-fn bool_query_params_are_cast_to_true_false_strings() {
-    let spec = parser::load_and_resolve(&fixture("petstore.yaml")).unwrap();
+fn bool_query_param_emits_conditional_is_bool_cast() {
+    let spec = parser::load_and_resolve(&fixture("bool_query_param.yaml")).unwrap();
     let ctx = CodegenContext {
         php_version: &PhpVersion::Php82,
         spec: &spec,
         namespace: "App\\Test",
         split_by_tag: false,
     };
-    let backend = PlainPhpBackend::new(None).unwrap();
-    let files = backend.run_dry(&ctx).unwrap();
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
     let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
 
-    // Optional path must have the is_bool cast (after array_filter)
     assert!(
         client.contains(
             "array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams)"
         ),
-        "Optional-param path must cast booleans to 'true'/'false':\n{client}"
-    );
-    // !empty() used instead of !== [] (L1)
-    assert!(
-        client.contains("!empty($queryParams)"),
-        "Must use !empty() to check for non-empty query params:\n{client}"
+        "Bool query params must emit is_bool cast:\n{client}"
     );
 }
 
@@ -1249,10 +1249,14 @@ fn single_dto_response_does_not_emit_list_phpdoc() {
     let files = backend.run_dry(&ctx).unwrap();
     let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
 
-    // getPetById returns a single Pet (not array) → must use Ref path
+    // getPetById returns a single Pet (not array) → narrows decodeJson via @var
+    // (needed for PHPStan level 9 because fromArray expects the strict PetData shape
+    // while decodeJson returns `array<string, mixed>`).
     assert!(
-        client.contains("Pet::fromArray($this->decodeJson($response))"),
-        "Single-DTO response must use Name::fromArray(decodeJson):\n{client}"
+        client.contains("/** @var PetData $data */")
+            && client.contains("$data = $this->decodeJson($response);")
+            && client.contains("return Pet::fromArray($data);"),
+        "Single-DTO response must narrow decodeJson to {{Name}}Data before fromArray:\n{client}"
     );
     assert!(
         !client.contains("@return list<Error>"),

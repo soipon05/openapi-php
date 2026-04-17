@@ -202,14 +202,16 @@ impl CodegenBackend for PlainPhpBackend {
             }
         } else {
             let client_ctx = build_client_ctx(ctx.spec, ctx.namespace, TagFilter::All);
-            let content = self
-                .env
-                .get_template("client")?
-                .render(Value::from_serialize(&client_ctx))?;
-            files.push(RenderedFile {
-                rel_path: PathBuf::from("Client/ApiClient.php"),
-                content,
-            });
+            if !client_ctx.endpoints.is_empty() {
+                let content = self
+                    .env
+                    .get_template("client")?
+                    .render(Value::from_serialize(&client_ctx))?;
+                files.push(RenderedFile {
+                    rel_path: PathBuf::from("Client/ApiClient.php"),
+                    content,
+                });
+            }
         }
 
         Ok(files)

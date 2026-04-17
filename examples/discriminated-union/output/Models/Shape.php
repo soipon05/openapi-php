@@ -10,6 +10,8 @@ use App\Example\Models\Rectangle;
  *
  * @phpstan-import-type CircleData from Circle
  * @phpstan-import-type RectangleData from Rectangle
+ *
+ * @phpstan-type ShapeData CircleData|RectangleData
  */
 final readonly class Shape
 {
@@ -21,16 +23,21 @@ final readonly class Shape
     /** @param CircleData|RectangleData $data */
     public static function fromArray(array $data): self
     {
-        return match ((string) ($data['shapeType'] ?? '')) {
-            'circle' => new self(Circle::fromArray($data)),
-            'rectangle' => new self(Rectangle::fromArray($data)),
-            default => throw new \UnexpectedValueException(
-                'Shape: unknown discriminator value "' . ($data['shapeType'] ?? '') . '"',
-            ),
-        };
+        $disc = (string) ($data['shapeType'] ?? '');
+        if ($disc === 'circle') {
+            /** @var CircleData $data */
+            return new self(Circle::fromArray($data));
+        }
+        if ($disc === 'rectangle') {
+            /** @var RectangleData $data */
+            return new self(Rectangle::fromArray($data));
+        }
+        throw new \UnexpectedValueException(
+            'Shape: unknown discriminator value "' . $disc . '"',
+        );
     }
 
-    /** @return array<string, mixed> */
+    /** @return ShapeData */
     public function toArray(): array
     {
         return $this->value->toArray();

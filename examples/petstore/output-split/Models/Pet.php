@@ -11,6 +11,9 @@ use App\Petstore\Models\Tag;
 /**
  * A pet currently listed in the store.
  *
+ * @phpstan-import-type CategoryData from Category
+ * @phpstan-import-type TagData from Tag
+ *
  * @phpstan-type PetData array{
  *     'id': int,
  *     'name': string,

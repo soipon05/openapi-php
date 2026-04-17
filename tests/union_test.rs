@@ -126,14 +126,17 @@ fn plain_generates_union_file_with_mapping() {
         "should have union property type"
     );
 
-    // fromArray match with mapping-derived keys
+    // fromArray if-chain with mapping-derived keys (replaced match for PHPStan
+    // level 9 — allows per-branch @var narrowing to DogData / CatData).
     assert!(
-        content.contains("'dog' => new self(Dog::fromArray($data))"),
-        "mapping key 'dog'"
+        content.contains("if ($disc === 'dog') {")
+            && content.contains("return new self(Dog::fromArray($data));"),
+        "mapping key 'dog' must dispatch to Dog::fromArray"
     );
     assert!(
-        content.contains("'cat' => new self(Cat::fromArray($data))"),
-        "mapping key 'cat'"
+        content.contains("if ($disc === 'cat') {")
+            && content.contains("return new self(Cat::fromArray($data));"),
+        "mapping key 'cat' must dispatch to Cat::fromArray"
     );
 
     // toArray delegates
@@ -172,11 +175,13 @@ fn plain_generates_union_file_no_mapping_uses_schema_name() {
 
     // Without mapping, OAS spec says match key = schema name as-is
     assert!(
-        content.contains("'Dog' => new self(Dog::fromArray($data))"),
+        content.contains("if ($disc === 'Dog') {")
+            && content.contains("return new self(Dog::fromArray($data));"),
         "schema-name key 'Dog'"
     );
     assert!(
-        content.contains("'Cat' => new self(Cat::fromArray($data))"),
+        content.contains("if ($disc === 'Cat') {")
+            && content.contains("return new self(Cat::fromArray($data));"),
         "schema-name key 'Cat'"
     );
 }
