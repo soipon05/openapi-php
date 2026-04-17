@@ -11,15 +11,15 @@ use anyhow::Result;
 use indexmap::IndexMap;
 
 use crate::ir::{
-    ArraySchema, EnumBackingType, EnumSchema, EnumVariant, HttpMethod, ObjectSchema, PhpPrimitive,
-    PrimitiveSchema, ResolvedEndpoint, ResolvedErrorResponse, ResolvedParam, ResolvedProperty,
-    ResolvedRequestBody, ResolvedSchema, ResolvedSecurityScheme, ResolvedSpec, SecuritySchemeType,
-    UnionSchema,
+    ArraySchema, EnumBackingType, EnumSchema, EnumVariant, HttpMethod, MapSchema, ObjectSchema,
+    PhpPrimitive, PrimitiveSchema, ResolvedEndpoint, ResolvedErrorResponse, ResolvedParam,
+    ResolvedProperty, ResolvedRequestBody, ResolvedSchema, ResolvedSecurityScheme, ResolvedSpec,
+    SecuritySchemeType, UnionSchema,
 };
 use crate::parser::error::ResolveError;
 use crate::parser::raw::types::{
-    EnumValue, OpenApi as RawOpenApi, Operation, Parameter, ParameterLocation, RawOrRef,
-    RequestBody, Response, Schema, SchemaType,
+    AdditionalProperties, EnumValue, OpenApi as RawOpenApi, Operation, Parameter, ParameterLocation,
+    RawOrRef, RequestBody, Response, Schema, SchemaType,
 };
 use crate::php_utils::{escape_reserved, to_camel_case, to_pascal_case};
 
@@ -236,6 +236,23 @@ impl<'a> Resolver<'a> {
             return self.resolve_union(schema);
         }
 
+        // Pure map: type: object + additionalProperties: <schema> + no fixed properties.
+        // Resolved inline like primitives — no PHP class is generated for this schema.
+        if schema.properties.is_empty()
+            && schema.all_of.is_empty()
+            && schema.any_of.is_empty()
+            && schema.one_of.is_empty()
+            && let Some(ap) = &schema.additional_properties
+            && let AdditionalProperties::Schema(s) = ap.as_ref()
+        {
+            let value_type = self.resolve_schema_or_ref(s)?;
+            return Ok(ResolvedSchema::Map(MapSchema {
+                value_type: Box::new(value_type),
+                description: schema.description.clone(),
+                nullable: false,
+            }));
+        }
+
         let is_object = schema
             .schema_type
             .as_ref()
@@ -430,6 +447,8 @@ impl<'a> Resolver<'a> {
         let name = ref_name(ref_path);
         match self.resolve_named_schema_for_ref(name, ref_path)? {
             p @ ResolvedSchema::Primitive(_) => Ok(p),
+            // Inline maps like primitives — no PHP class exists for pure map schemas.
+            m @ ResolvedSchema::Map(_) => Ok(m),
             _ => Ok(ResolvedSchema::Ref(Arc::from(name))),
         }
     }
@@ -562,10 +581,24 @@ impl<'a> Resolver<'a> {
             .unwrap_or(param.location == ParameterLocation::Path);
         let php_name = escape_reserved(&to_camel_case(&param.name));
 
-        let schema = if let Some(ror) = param.schema {
+        let schema = if let Some(ror) = param.schema.clone() {
             self.resolve_schema_or_ref(&ror)?
         } else {
             mixed()
+        };
+
+        // Determine array explode behaviour for query parameters.
+        // OpenAPI default: style=form, explode=true → repeated keys (?a=1&a=2).
+        let explode = if param.location == ParameterLocation::Query {
+            let is_array = matches!(schema, ResolvedSchema::Array(_));
+            if is_array {
+                // explicit explode overrides the default; default for form style is true
+                Some(param.explode.unwrap_or(true))
+            } else {
+                None
+            }
+        } else {
+            None
         };
 
         Ok(ResolvedParam {
@@ -573,6 +606,7 @@ impl<'a> Resolver<'a> {
             php_name,
             schema,
             required,
+            explode,
         })
     }
 

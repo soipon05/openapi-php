@@ -968,10 +968,14 @@ fn query_params_use_array_filter_to_skip_nulls() {
         client.contains("array_filter([") && client.contains("], fn($v) => $v !== null)"),
         "Query params must be filtered through array_filter to drop nulls:\n{client}"
     );
-    // L1: use !empty() instead of !== []
+    // L1: scalar params → $queryStr via http_build_query, then conditional '?' prefix
     assert!(
-        client.contains("!empty($queryParams) ? '?' . http_build_query($queryParams) : ''"),
-        "Query string must use !empty() check:\n{client}"
+        client.contains("$queryStr = !empty($queryParams) ? http_build_query($queryParams) : '';"),
+        "Query string must assign to $queryStr via http_build_query:\n{client}"
+    );
+    assert!(
+        client.contains("($queryStr !== '' ? '?' . $queryStr : '')"),
+        "URI must append query string conditionally:\n{client}"
     );
     // L2: bool false must not produce empty query string — cast via array_map/is_bool
     assert!(

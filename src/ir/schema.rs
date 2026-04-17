@@ -12,6 +12,16 @@ pub enum ResolvedSchema {
     Union(UnionSchema),
     /// Named back-reference used only for circular refs
     Ref(Arc<str>),
+    /// Pure map: `type: object` with `additionalProperties: <schema>` and no fixed properties.
+    /// Inlined at property sites like primitives — no PHP class is generated.
+    Map(MapSchema),
+}
+
+#[derive(Debug, Clone)]
+pub struct MapSchema {
+    pub value_type: Box<ResolvedSchema>,
+    pub description: Option<String>,
+    pub nullable: bool,
 }
 
 #[derive(Debug, Clone)]

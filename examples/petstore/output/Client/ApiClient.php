@@ -42,7 +42,8 @@ final class ApiClient
             'offset' => $offset,
         ], fn($v) => $v !== null);
         $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams);
-        $uri = $this->baseUrl . '/pets' . (!empty($queryParams) ? '?' . http_build_query($queryParams) : '');
+        $queryStr = !empty($queryParams) ? http_build_query($queryParams) : '';
+        $uri = $this->baseUrl . '/pets' . ($queryStr !== '' ? '?' . $queryStr : '');
         $request = $this->requestFactory->createRequest('GET', $uri);
         $response = $this->httpClient->sendRequest($request);
         $this->assertSuccessful($response, 'GET', '/pets');

@@ -110,6 +110,11 @@ pub struct Parameter {
     pub description: Option<String>,
     pub required: Option<bool>,
     pub schema: Option<RawOrRef<Schema>>,
+    /// OpenAPI serialization style (e.g. `"form"`, `"spaceDelimited"`, `"pipeDelimited"`).
+    pub style: Option<String>,
+    /// Whether array/object values are exploded into repeated key-value pairs.
+    /// Default for query params: `true` (form style, exploded).
+    pub explode: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -192,6 +197,7 @@ pub struct Schema {
     pub pattern: Option<String>,
     pub example: Option<serde_json::Value>,
     pub discriminator: Option<Discriminator>,
+    #[serde(rename = "additionalProperties")]
     pub additional_properties: Option<Box<AdditionalProperties>>,
     pub default: Option<serde_json::Value>,
     #[serde(rename = "readOnly")]

@@ -66,6 +66,11 @@ pub struct ResolvedParam {
     pub php_name: String,
     pub schema: ResolvedSchema,
     pub required: bool,
+    /// How repeated array values are serialised in the query string.
+    /// `true`  → repeated keys: `?tags=a&tags=b`  (OpenAPI default for query)
+    /// `false` → comma-joined:  `?tags=a,b`        (style=form, explode=false)
+    /// `None`  → not a query parameter, or style is irrelevant
+    pub explode: Option<bool>,
 }
 
 #[derive(Debug, Clone)]

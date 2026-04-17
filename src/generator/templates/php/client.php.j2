@@ -59,23 +59,41 @@ final class {{ class_name }}
 {% endif %}
     public function {{ ep.fn_name }}({{ ep.params_str }}): {{ ep.return_type }}
     {
-{% if ep.has_query_params %}
-{% if ep.has_optional_query_params %}
+{% if ep.has_query_params or ep.has_array_query_params %}
+{% if ep.has_query_params and ep.has_optional_query_params %}
         $queryParams = array_filter([
 {% for qp in ep.query_params %}
             '{{ qp.name }}' => ${{ qp.php_name }},
 {% endfor %}
         ], fn($v) => $v !== null);
         $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, $queryParams);
-        $uri = $this->baseUrl . {{ ep.path_expr }} . (!empty($queryParams) ? '?' . http_build_query($queryParams) : '');
-{% else %}
+        $queryStr = !empty($queryParams) ? http_build_query($queryParams) : '';
+{% elif ep.has_query_params %}
         $queryParams = array_map(fn($v) => is_bool($v) ? ($v ? 'true' : 'false') : $v, [
 {% for qp in ep.query_params %}
             '{{ qp.name }}' => ${{ qp.php_name }},
 {% endfor %}
         ]);
-        $uri = $this->baseUrl . {{ ep.path_expr }} . '?' . http_build_query($queryParams);
+        $queryStr = http_build_query($queryParams);
+{% else %}
+        $queryStr = '';
 {% endif %}
+{% for qp in ep.array_query_params %}
+{% if qp.explode %}
+        foreach (${{ qp.php_name }}{% if not qp.required %} ?? []{% endif %} as $v) {
+            $queryStr .= ($queryStr !== '' ? '&' : '') . '{{ qp.name }}=' . urlencode((string) $v);
+        }
+{% else %}
+{% if qp.required %}
+        $queryStr .= ($queryStr !== '' ? '&' : '') . '{{ qp.name }}=' . urlencode(implode(',', ${{ qp.php_name }}));
+{% else %}
+        if (${{ qp.php_name }} !== null) {
+            $queryStr .= ($queryStr !== '' ? '&' : '') . '{{ qp.name }}=' . urlencode(implode(',', ${{ qp.php_name }}));
+        }
+{% endif %}
+{% endif %}
+{% endfor %}
+        $uri = $this->baseUrl . {{ ep.path_expr }} . ($queryStr !== '' ? '?' . $queryStr : '');
         $request = $this->requestFactory->createRequest('{{ ep.method_str }}', $uri);
 {% else %}
         $request = $this->requestFactory

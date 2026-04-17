@@ -10,7 +10,7 @@ pub use crate::php_utils::{
     sanitize_phpdoc, to_camel_case, to_pascal_case,
 };
 
-use crate::ir::{EnumBackingType, PhpPrimitive, ResolvedParam, ResolvedSchema, UnionSchema};
+use crate::ir::{EnumBackingType, MapSchema, PhpPrimitive, ResolvedParam, ResolvedSchema, UnionSchema};
 use std::collections::BTreeSet;
 
 // ─── Nullable-ref union detection ────────────────────────────────────────
@@ -30,7 +30,7 @@ pub fn nullable_ref_name(schema: &UnionSchema) -> Option<&str> {
             ResolvedSchema::Primitive(_) => {
                 has_null_sentinel = true;
             }
-            _ => return None, // Object / Array / Enum / nested Union → not a nullable ref
+            _ => return None, // Object / Array / Map / Enum / nested Union → not a nullable ref
         }
     }
 
@@ -56,7 +56,9 @@ pub fn schema_to_php_type(schema: &ResolvedSchema, nullable: bool) -> String {
             };
             (base.to_string(), p.nullable)
         }
-        ResolvedSchema::Object(_) | ResolvedSchema::Array(_) => ("array".to_string(), false),
+        ResolvedSchema::Object(_) | ResolvedSchema::Array(_) | ResolvedSchema::Map(_) => {
+            ("array".to_string(), false)
+        }
         ResolvedSchema::Enum(e) => match e.backing_type {
             EnumBackingType::String => ("string".to_string(), false),
             EnumBackingType::Int => ("int".to_string(), false),
@@ -77,6 +79,22 @@ pub fn schema_to_php_type(schema: &ResolvedSchema, nullable: bool) -> String {
     }
 }
 
+/// Returns the PHPStan `array<string, V>` representation for a [`MapSchema`].
+pub fn map_phpstan_value_type(m: &MapSchema) -> String {
+    let value = match m.value_type.as_ref() {
+        ResolvedSchema::Primitive(p) => match p.php_type {
+            PhpPrimitive::String | PhpPrimitive::Mixed => "string".to_string(),
+            PhpPrimitive::Int => "int".to_string(),
+            PhpPrimitive::Float => "float".to_string(),
+            PhpPrimitive::Bool => "bool".to_string(),
+            PhpPrimitive::DateTime => "string".to_string(), // date-time serialised as string
+        },
+        ResolvedSchema::Ref(name) => format!("{}Data", sanitize_php_ident(name)),
+        _ => "mixed".to_string(),
+    };
+    format!("array<string, {value}>")
+}
+
 pub fn items_type_name(schema: &ResolvedSchema) -> String {
     match schema {
         ResolvedSchema::Primitive(p) => match p.php_type {
@@ -89,6 +107,7 @@ pub fn items_type_name(schema: &ResolvedSchema) -> String {
         },
         ResolvedSchema::Ref(name) => sanitize_php_ident(name),
         ResolvedSchema::Object(_) => "array<string, mixed>".to_string(),
+        ResolvedSchema::Map(m) => map_phpstan_value_type(m),
         _ => "mixed".to_string(),
     }
 }
@@ -118,7 +137,9 @@ pub fn inner_from_array(key: &str, schema: &ResolvedSchema) -> String {
             }
             _ => format!("(array) $data['{key}']"),
         },
-        ResolvedSchema::Object(_) => format!("(array) $data['{key}']"),
+        ResolvedSchema::Object(_) | ResolvedSchema::Map(_) => {
+            format!("(array) $data['{key}']")
+        }
         _ => format!("$data['{key}']"),
     }
 }
@@ -165,7 +186,9 @@ fn required_from_array_expr(key: &str, schema: &ResolvedSchema) -> String {
             }
             _ => format!("(array) ($data['{key}'] ?? [])"),
         },
-        ResolvedSchema::Object(_) => format!("(array) ($data['{key}'] ?? {throw})"),
+        ResolvedSchema::Object(_) | ResolvedSchema::Map(_) => {
+            format!("(array) ($data['{key}'] ?? {throw})")
+        }
         _ => format!("($data['{key}'] ?? {throw})"),
     }
 }
@@ -236,6 +259,7 @@ pub fn collect_refs(schema: &ResolvedSchema, refs: &mut BTreeSet<String>) {
             refs.insert(name.to_string());
         }
         ResolvedSchema::Array(a) => collect_refs(&a.items, refs),
+        ResolvedSchema::Map(m) => collect_refs(&m.value_type, refs),
         ResolvedSchema::Object(o) => {
             for (_, prop) in &o.properties {
                 collect_refs(&prop.schema, refs);

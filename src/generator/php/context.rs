@@ -15,8 +15,8 @@ use std::collections::BTreeSet;
 
 use super::helpers::{
     ReturnKind, build_path_expr, collect_refs, escape_reserved, from_array_expr, items_type_name,
-    resolve_return, sanitize_php_ident, sanitize_php_string_literal, sanitize_phpdoc,
-    schema_to_php_type, to_array_expr, to_camel_case, to_pascal_case,
+    map_phpstan_value_type, resolve_return, sanitize_php_ident, sanitize_php_string_literal,
+    sanitize_phpdoc, schema_to_php_type, to_array_expr, to_camel_case, to_pascal_case,
 };
 
 // ─── Context structs (Serialize → minijinja) ───────────────────────────────
@@ -123,11 +123,14 @@ pub struct EndpointCtx {
     pub has_json: bool,
     pub summary: Option<String>,
     pub deprecated: bool,
+    /// Scalar (non-array) query parameters — serialised via `http_build_query`.
     pub query_params: Vec<QueryParamCtx>,
     pub has_query_params: bool,
-    /// true when at least one query param is optional (not required).
-    /// When false, all params are required and array_filter is unnecessary.
+    /// true when at least one scalar query param is optional (not required).
     pub has_optional_query_params: bool,
+    /// Array-type query parameters — serialised as repeated keys or comma-joined.
+    pub array_query_params: Vec<ArrayQueryParamCtx>,
+    pub has_array_query_params: bool,
     pub header_params: Vec<QueryParamCtx>,
     pub has_header_params: bool,
     pub path_expr: String,
@@ -172,6 +175,16 @@ pub struct QueryParamCtx {
     pub name: String,
     pub php_name: String,
     pub required: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ArrayQueryParamCtx {
+    pub name: String,
+    pub php_name: String,
+    pub required: bool,
+    /// true  → repeated keys: `?tags=a&tags=b`
+    /// false → comma-joined:  `?tags=a,b`
+    pub explode: bool,
 }
 
 
@@ -650,13 +663,28 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
             let (return_type, rk) = resolve_return(&ep.response);
             let has_json = !matches!(rk, ReturnKind::Void) || ep.request_body.is_some();
             let path_expr = build_path_expr(&ep.path, &ep.path_params);
+            // Split query params into scalar vs array-type based on whether explode is set.
             let query_params: Vec<QueryParamCtx> = ep
                 .query_params
                 .iter()
+                .filter(|p| p.explode.is_none()) // scalar params
                 .map(|p| QueryParamCtx {
                     name: sanitize_php_string_literal(&p.name),
                     php_name: sanitize_php_ident(&p.php_name),
                     required: p.required,
+                })
+                .collect();
+
+            let array_query_params: Vec<ArrayQueryParamCtx> = ep
+                .query_params
+                .iter()
+                .filter_map(|p| {
+                    p.explode.map(|explode| ArrayQueryParamCtx {
+                        name: sanitize_php_string_literal(&p.name),
+                        php_name: sanitize_php_ident(&p.php_name),
+                        required: p.required,
+                        explode,
+                    })
                 })
                 .collect();
 
@@ -717,9 +745,11 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
                 has_json,
                 summary: ep.summary.as_deref().map(sanitize_phpdoc),
                 deprecated: ep.deprecated,
-                has_query_params: !ep.query_params.is_empty(),
-                has_optional_query_params: ep.query_params.iter().any(|p| !p.required),
+                has_query_params: !query_params.is_empty(),
+                has_optional_query_params: query_params.iter().any(|p| !p.required),
                 query_params,
+                has_array_query_params: !array_query_params.is_empty(),
+                array_query_params,
                 has_header_params: !ep.header_params.is_empty(),
                 header_params,
                 path_expr,
@@ -849,6 +879,7 @@ fn compute_phpstan_wire(
             Some(ResolvedSchema::Object(_)) => format!("{}Data", name),
             _ => "array<string, mixed>".to_string(),
         },
+        ResolvedSchema::Map(m) => map_phpstan_value_type(m),
         _ => phpstan_scalar_type(php_type),
     }
 }
