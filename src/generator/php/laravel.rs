@@ -313,10 +313,10 @@ fn derive_validation_rules(
         ResolvedSchema::Object(_) => {
             return vec!["nullable".to_string(), "array".to_string()];
         }
-        ResolvedSchema::Ref(r) => {
-            if !matches!(schemas.get(r.as_ref()), Some(ResolvedSchema::Enum(_))) {
-                return vec!["nullable".to_string(), "array".to_string()];
-            }
+        ResolvedSchema::Ref(r)
+            if !matches!(schemas.get(r.as_ref()), Some(ResolvedSchema::Enum(_))) =>
+        {
+            return vec!["nullable".to_string(), "array".to_string()];
         }
         // Primitive, Array, Enum, Union → fall through to the type-specific rule
         // generation below; no early return needed.
