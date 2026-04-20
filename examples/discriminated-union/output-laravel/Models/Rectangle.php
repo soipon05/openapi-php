@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Generated\Models;
 
+use App\Generated\Models\TypeAssert;
+
 /**
  * A rectangle shape, identified by width and height.
  *
@@ -33,15 +35,17 @@ readonly final class Rectangle
     ) {}
 
     /**
-     * @param RectangleData $data
+     * @param array<mixed> $data
+     * @phpstan-assert RectangleData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            shapeType: (string) ($data['shapeType'] ?? throw new \UnexpectedValueException("Missing required field 'shapeType'")),
-            width: (float) ($data['width'] ?? throw new \UnexpectedValueException("Missing required field 'width'")),
-            height: (float) ($data['height'] ?? throw new \UnexpectedValueException("Missing required field 'height'")),
+            shapeType: TypeAssert::requireString($data, 'shapeType'),
+            width: TypeAssert::requireFloat($data, 'width'),
+            height: TypeAssert::requireFloat($data, 'height'),
         );
     }
 

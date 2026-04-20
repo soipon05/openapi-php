@@ -226,7 +226,6 @@ pub struct ArrayQueryParamCtx {
     pub explode: bool,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct UnionCtx {
     pub name: String,
@@ -289,17 +288,18 @@ pub fn build_model_ctx(
             let phpstan_wire = compute_phpstan_wire(&prop.schema, schemas, &php_type);
             let (from_expr, to_expr) = match &prop.schema {
                 ResolvedSchema::Ref(ref_name) => {
-                    let is_enum = schemas
-                        .get(ref_name.as_ref())
-                        .map(|s| matches!(s, ResolvedSchema::Enum(_)))
-                        .unwrap_or(false);
-                    if is_enum {
+                    let enum_backing = schemas.get(ref_name.as_ref()).and_then(|s| match s {
+                        ResolvedSchema::Enum(e) => Some(e.backing_type),
+                        _ => None,
+                    });
+                    if let Some(backing) = enum_backing {
+                        let assert_call = enum_backing_require_expr(backing, prop_name);
                         let from_e = if nullable {
                             format!(
-                                "isset($data['{prop_name}']) ? {ref_name}::from($data['{prop_name}']) : null"
+                                "isset($data['{prop_name}']) ? {ref_name}::from({assert_call}) : null"
                             )
                         } else {
-                            format!("{ref_name}::from($data['{prop_name}'])")
+                            format!("{ref_name}::from({assert_call})")
                         };
                         let to_e = if nullable {
                             format!("$this->{camel}?->value")
@@ -317,18 +317,19 @@ pub fn build_model_ctx(
                 ResolvedSchema::Array(arr) => {
                     let (from_e, to_e) = match arr.items.as_ref() {
                         ResolvedSchema::Ref(rname) => {
-                            let is_enum = schemas
-                                .get(rname.as_ref())
-                                .map(|s| matches!(s, ResolvedSchema::Enum(_)))
-                                .unwrap_or(false);
-                            if is_enum {
+                            let enum_backing = schemas.get(rname.as_ref()).and_then(|s| match s {
+                                ResolvedSchema::Enum(e) => Some(e.backing_type),
+                                _ => None,
+                            });
+                            if let Some(backing) = enum_backing {
+                                let item_check = enum_backing_item_check(backing, prop_name);
                                 let from_e = if nullable {
                                     format!(
-                                        "isset($data['{prop_name}']) ? array_map(fn($item) => {rname}::from($item), $data['{prop_name}']) : null"
+                                        "isset($data['{prop_name}']) ? array_map(fn($item) => {rname}::from({item_check}), TypeAssert::requireList($data, '{prop_name}')) : null"
                                     )
                                 } else {
                                     format!(
-                                        "array_map(fn($item) => {rname}::from($item), $data['{prop_name}'] ?? [])"
+                                        "array_map(fn($item) => {rname}::from({item_check}), TypeAssert::requireList($data, '{prop_name}'))"
                                     )
                                 };
                                 let to_e = if nullable {
@@ -700,7 +701,11 @@ pub enum TagFilter<'a> {
     Untagged,
 }
 
-pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFilter<'_>) -> ClientCtx {
+pub fn build_client_ctx(
+    spec: &ResolvedSpec,
+    namespace: &str,
+    tag_filter: TagFilter<'_>,
+) -> ClientCtx {
     // Determine class name from filter
     let class_name = match &tag_filter {
         TagFilter::All => "ApiClient".to_string(),
@@ -719,7 +724,9 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
         })
         .collect();
 
-    let needs_stream_factory = filtered_endpoints.iter().any(|ep| ep.request_body.is_some());
+    let needs_stream_factory = filtered_endpoints
+        .iter()
+        .any(|ep| ep.request_body.is_some());
 
     let mut model_refs: Vec<String> = filtered_endpoints
         .iter()
@@ -928,7 +935,10 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
     {
         helpers.push(ClientHelper::DecodeJsonList);
     }
-    if endpoints.iter().any(|ep| ep.request_body_mode == "multipart") {
+    if endpoints
+        .iter()
+        .any(|ep| ep.request_body_mode == "multipart")
+    {
         helpers.push(ClientHelper::MultipartBody);
     }
     // `assertSuccessful()` is the fallback for endpoints without typed error cases.
@@ -974,6 +984,28 @@ pub fn build_client_ctx(spec: &ResolvedSpec, namespace: &str, tag_filter: TagFil
 }
 
 // ─── PHPStan array-shape helpers ──────────────────────────────────────────────
+
+/// Runtime-assert call for a top-level enum property keyed by `prop_name`.
+/// Returns a string like `TypeAssert::requireString($data, 'status')`.
+fn enum_backing_require_expr(backing: EnumBackingType, prop_name: &str) -> String {
+    let method = match backing {
+        EnumBackingType::String => "requireString",
+        EnumBackingType::Int => "requireInt",
+    };
+    format!("TypeAssert::{method}($data, '{prop_name}')")
+}
+
+/// Per-item runtime check inside an `array_map` lambda for enum arrays.
+/// The enum's `::from()` would otherwise accept unvalidated `mixed` items.
+fn enum_backing_item_check(backing: EnumBackingType, prop_name: &str) -> String {
+    let (predicate, type_name) = match backing {
+        EnumBackingType::String => ("is_string", "string"),
+        EnumBackingType::Int => ("is_int", "int"),
+    };
+    format!(
+        "{predicate}($item) ? $item : throw new \\UnexpectedValueException(\"Field '{prop_name}' items must be {type_name}, got \" . get_debug_type($item))"
+    )
+}
 
 /// Returns true if the schema is (or contains) a date-time primitive.
 /// Used to determine whether `fromArray` can throw on date parsing.

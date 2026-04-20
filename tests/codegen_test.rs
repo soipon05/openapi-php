@@ -332,7 +332,6 @@ fn no_security_schemes_on_simple_spec() {
     );
 }
 
-
 // ─── Primitive $ref inlining tests ───────────────────────────────────────────
 
 /// A named schema that is just `type: string` should NOT generate a PHP class file.
@@ -643,18 +642,19 @@ fn phpstan_from_array_emits_array_shape() {
     let files = backend.run_dry(&ctx).unwrap();
     let item = files[&PathBuf::from("Models/Item.php")].as_str();
 
-    // Must use the named type alias, not inline shape or generic fallback
+    // Must use the named type alias for both declaration and assertion
     assert!(
         item.contains("@phpstan-type ItemData array{"),
         "Expected @phpstan-type ItemData declaration:\n{item}"
     );
+    // fromArray now accepts arbitrary arrays and narrows via @phpstan-assert
     assert!(
-        item.contains("@param ItemData $data"),
-        "fromArray must reference the named type alias:\n{item}"
+        item.contains("@phpstan-assert ItemData $data"),
+        "fromArray must narrow $data via @phpstan-assert:\n{item}"
     );
     assert!(
-        !item.contains("@param array<string, mixed>"),
-        "Generic @param array<string, mixed> must be replaced by type alias:\n{item}"
+        item.contains("@param array<mixed> $data"),
+        "fromArray's @param must accept arbitrary arrays:\n{item}"
     );
 }
 
@@ -971,9 +971,8 @@ fn query_params_use_array_filter_to_skip_nulls() {
     // L1: scalar params → $queryStr via http_build_query, then conditional '?' prefix.
     // `count($queryParams) > 0` instead of `!empty()` for PHPStan strict-rules compliance.
     assert!(
-        client.contains(
-            "$queryStr = count($queryParams) > 0 ? http_build_query($queryParams) : '';"
-        ),
+        client
+            .contains("$queryStr = count($queryParams) > 0 ? http_build_query($queryParams) : '';"),
         "Query string must assign to $queryStr via http_build_query:\n{client}"
     );
     assert!(
@@ -1026,9 +1025,15 @@ fn from_array_no_throws_when_no_datetime_prop() {
     let files = backend.run_dry(&ctx).unwrap();
     let req = files[&PathBuf::from("Models/CreateItemRequest.php")].as_str();
 
+    // `fromArray` always declares @throws \UnexpectedValueException (runtime type
+    // checks), but must NOT declare date-time throws for models without datetime.
     assert!(
-        !req.contains("@throws"),
-        "fromArray must NOT declare @throws when model has no DateTimeImmutable:\n{req}"
+        !req.contains("On invalid date-time string"),
+        "fromArray must NOT declare date-time @throws when model has no DateTimeImmutable:\n{req}"
+    );
+    assert!(
+        !req.contains("\\DateMalformedStringException"),
+        "fromArray must NOT reference DateMalformedStringException without datetime props:\n{req}"
     );
 }
 
@@ -1161,7 +1166,10 @@ fn all_required_query_params_skip_array_filter() {
         .iter()
         .find(|ep| ep.fn_name == "listPets")
         .unwrap();
-    assert!(!list_pets.query_params.is_empty(), "listPets has query params");
+    assert!(
+        !list_pets.query_params.is_empty(),
+        "listPets has query params"
+    );
     assert!(
         list_pets.query_string_block.contains("array_filter"),
         "optional query params must flow through array_filter:\n{}",
@@ -1286,10 +1294,10 @@ fn model_emits_phpstan_type_alias_in_class_docblock() {
         "@phpstan-type must appear before class declaration"
     );
 
-    // fromArray and toArray must reference the alias, not inline shapes
+    // fromArray narrows to the alias via @phpstan-assert; toArray returns alias directly
     assert!(
-        item.contains("@param ItemData $data"),
-        "fromArray must use alias"
+        item.contains("@phpstan-assert ItemData $data"),
+        "fromArray must narrow $data to alias"
     );
     assert!(item.contains("@return ItemData"), "toArray must use alias");
 }

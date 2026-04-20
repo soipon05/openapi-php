@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Example\Models;
-use App\Example\Models\Circle;
-use App\Example\Models\Rectangle;
+namespace App\Generated\Models;
+
+use App\Generated\Models\TypeAssert;
+use App\Generated\Models\Circle;
+use App\Generated\Models\Rectangle;
 /**
  * A geometric shape. The `shapeType` field is the discriminator; use its value to determine which concrete type to deserialize.
  *
@@ -20,10 +22,13 @@ final readonly class Shape
         public Circle|Rectangle $value,
     ) {}
 
-    /** @param CircleData|RectangleData $data */
+    /**
+     * @param array<mixed> $data
+     * @phpstan-assert CircleData|RectangleData $data
+     */
     public static function fromArray(array $data): self
     {
-        $disc = (string) ($data['shapeType'] ?? '');
+        $disc = TypeAssert::requireString($data, 'shapeType');
         if ($disc === 'circle') {
             /** @var CircleData $data */
             return new self(Circle::fromArray($data));

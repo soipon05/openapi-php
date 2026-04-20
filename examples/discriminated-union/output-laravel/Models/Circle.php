@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Generated\Models;
 
+use App\Generated\Models\TypeAssert;
+
 /**
  * A circle shape, identified by its radius.
  *
@@ -27,14 +29,16 @@ readonly final class Circle
     ) {}
 
     /**
-     * @param CircleData $data
+     * @param array<mixed> $data
+     * @phpstan-assert CircleData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            shapeType: (string) ($data['shapeType'] ?? throw new \UnexpectedValueException("Missing required field 'shapeType'")),
-            radius: (float) ($data['radius'] ?? throw new \UnexpectedValueException("Missing required field 'radius'")),
+            shapeType: TypeAssert::requireString($data, 'shapeType'),
+            radius: TypeAssert::requireFloat($data, 'radius'),
         );
     }
 

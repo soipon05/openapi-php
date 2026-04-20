@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Petstore\Models;
 
+use App\Petstore\Models\TypeAssert;
 use App\Petstore\Models\Category;
 use App\Petstore\Models\PetStatus;
 use App\Petstore\Models\Tag;
@@ -75,24 +76,26 @@ readonly final class DomesticPet
     ) {}
 
     /**
-     * @param DomesticPetData $data
+     * @param array<mixed> $data
+     * @phpstan-assert DomesticPetData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      * @throws \Exception On invalid date-time string
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            id: (int) ($data['id'] ?? throw new \UnexpectedValueException("Missing required field 'id'")),
-            name: (string) ($data['name'] ?? throw new \UnexpectedValueException("Missing required field 'name'")),
-            status: isset($data['status']) ? PetStatus::from($data['status']) : null,
-            category: isset($data['category']) ? Category::fromArray($data['category']) : null,
-            tags: isset($data['tags']) ? array_map(fn($item) => Tag::fromArray($item), $data['tags']) : null,
-            photoUrls: isset($data['photoUrls']) ? (array) $data['photoUrls'] : null,
-            createdAt: isset($data['createdAt']) ? new \DateTimeImmutable($data['createdAt']) : null,
-            updatedAt: isset($data['updatedAt']) ? new \DateTimeImmutable($data['updatedAt']) : null,
-            ownerName: isset($data['ownerName']) ? (string) $data['ownerName'] : null,
-            ownerEmail: isset($data['ownerEmail']) ? (string) $data['ownerEmail'] : null,
-            vaccinated: isset($data['vaccinated']) ? (bool) $data['vaccinated'] : null,
+            id: TypeAssert::requireInt($data, 'id'),
+            name: TypeAssert::requireString($data, 'name'),
+            status: isset($data['status']) ? PetStatus::from(TypeAssert::requireString($data, 'status')) : null,
+            category: isset($data['category']) ? Category::fromArray(TypeAssert::requireArray($data, 'category')) : null,
+            tags: isset($data['tags']) ? array_map(fn($item) => Tag::fromArray(is_array($item) ? $item : throw new \UnexpectedValueException("Field 'tags' items must be array, got " . get_debug_type($item))), TypeAssert::requireList($data, 'tags')) : null,
+            photoUrls: isset($data['photoUrls']) ? array_map(fn($item) => is_string($item) ? $item : throw new \UnexpectedValueException("Field 'photoUrls' items must be string, got " . get_debug_type($item)), TypeAssert::requireList($data, 'photoUrls')) : null,
+            createdAt: isset($data['createdAt']) ? new \DateTimeImmutable(TypeAssert::requireString($data, 'createdAt')) : null,
+            updatedAt: isset($data['updatedAt']) ? new \DateTimeImmutable(TypeAssert::requireString($data, 'updatedAt')) : null,
+            ownerName: isset($data['ownerName']) ? TypeAssert::requireString($data, 'ownerName') : null,
+            ownerEmail: isset($data['ownerEmail']) ? TypeAssert::requireString($data, 'ownerEmail') : null,
+            vaccinated: isset($data['vaccinated']) ? TypeAssert::requireBool($data, 'vaccinated') : null,
         );
     }
 

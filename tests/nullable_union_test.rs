@@ -77,11 +77,12 @@ fn nullable_ref_union_from_array_uses_isset() {
 
     let content = files.get(&PathBuf::from("Models/Item.php")).unwrap();
 
-    // fromArray should use isset pattern for nullable ref
+    // fromArray should use isset + TypeAssert pattern for nullable ref
     assert!(
-        content
-            .contains("isset($data['category']) ? Category::fromArray($data['category']) : null"),
-        "fromArray should use isset pattern:\n{content}"
+        content.contains(
+            "isset($data['category']) ? Category::fromArray(TypeAssert::requireArray($data, 'category')) : null"
+        ),
+        "fromArray should use isset + TypeAssert pattern:\n{content}"
     );
 }
 

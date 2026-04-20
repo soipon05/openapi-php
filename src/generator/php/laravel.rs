@@ -142,7 +142,22 @@ impl LaravelPhpBackend {
             "union.php.j2",
             include_str!("../templates/php/union.php.j2"),
         )?;
+        add_template_with_override(
+            &mut env,
+            templates_dir,
+            "type_assert",
+            "type_assert.php.j2",
+            include_str!("../templates/php/type_assert.php.j2"),
+        )?;
         Ok(Self { env })
+    }
+
+    fn needs_type_assert(spec: &ResolvedSpec) -> bool {
+        spec.schemas.values().any(|s| match s {
+            ResolvedSchema::Object(obj) => !obj.properties.is_empty(),
+            ResolvedSchema::Union(_) => true,
+            _ => false,
+        })
     }
 }
 
@@ -157,6 +172,25 @@ impl CodegenBackend for LaravelPhpBackend {
 
     fn render(&self, ctx: &CodegenContext<'_>) -> Result<Vec<RenderedFile>> {
         let mut files: Vec<RenderedFile> = Vec::new();
+
+        // Shared TypeAssert helper — emitted once when any DTO needs it
+        if Self::needs_type_assert(ctx.spec) {
+            #[derive(Serialize)]
+            struct TypeAssertCtx<'a> {
+                namespace: &'a str,
+            }
+            let ta_ctx = TypeAssertCtx {
+                namespace: ctx.namespace,
+            };
+            let content = self
+                .env
+                .get_template("type_assert")?
+                .render(Value::from_serialize(&ta_ctx))?;
+            files.push(RenderedFile {
+                rel_path: PathBuf::from("Models/TypeAssert.php"),
+                content,
+            });
+        }
 
         for (name, schema) in &ctx.spec.schemas {
             match schema {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Petstore\Models;
 
+use App\Petstore\Models\TypeAssert;
+
 /**
  * A grouping category for pets (e.g. Dogs, Cats).
  *
@@ -26,14 +28,16 @@ readonly final class Category
     ) {}
 
     /**
-     * @param CategoryData $data
+     * @param array<mixed> $data
+     * @phpstan-assert CategoryData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            id: isset($data['id']) ? (int) $data['id'] : null,
-            name: isset($data['name']) ? (string) $data['name'] : null,
+            id: isset($data['id']) ? TypeAssert::requireInt($data, 'id') : null,
+            name: isset($data['name']) ? TypeAssert::requireString($data, 'name') : null,
         );
     }
 

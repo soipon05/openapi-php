@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace {{ namespace }}\Models;
 
+{% if properties %}
+use {{ namespace }}\Models\TypeAssert;
+{% endif %}
 {% for import in use_imports %}
 use {{ namespace }}\Models\{{ import }};
 {% endfor %}
-{% if use_imports %}
+{% if properties or use_imports %}
 
 {% endif %}
 {% if description or type_alias_name %}
@@ -71,18 +74,12 @@ final class {{ name }}
     ) {}
 
     /**
+     * @param array<mixed> $data
 {% if type_alias_name %}
-     * @param {{ type_alias_name }} $data
-{% elif phpstan_from_shape %}
-     * @param array{
-{% for entry in phpstan_from_shape %}
-     *     {{ entry }},
-{% endfor %}
-     * } $data
-{% else %}
-     * @param array<string, mixed> $data
+     * @phpstan-assert {{ type_alias_name }} $data
 {% endif %}
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
 {% if has_datetime_prop %}
      * @throws {{ datetime_throws }} On invalid date-time string
 {% endif %}

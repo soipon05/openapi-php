@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Petstore\Models;
 
+use App\Petstore\Models\TypeAssert;
 use App\Petstore\Models\Category;
 use App\Petstore\Models\PetStatus;
 use App\Petstore\Models\Tag;
@@ -42,17 +43,19 @@ readonly final class NewPet
     ) {}
 
     /**
-     * @param NewPetData $data
+     * @param array<mixed> $data
+     * @phpstan-assert NewPetData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            name: (string) ($data['name'] ?? throw new \UnexpectedValueException("Missing required field 'name'")),
-            status: isset($data['status']) ? PetStatus::from($data['status']) : null,
-            category: isset($data['category']) ? Category::fromArray($data['category']) : null,
-            tags: isset($data['tags']) ? array_map(fn($item) => Tag::fromArray($item), $data['tags']) : null,
-            photoUrls: isset($data['photoUrls']) ? (array) $data['photoUrls'] : null,
+            name: TypeAssert::requireString($data, 'name'),
+            status: isset($data['status']) ? PetStatus::from(TypeAssert::requireString($data, 'status')) : null,
+            category: isset($data['category']) ? Category::fromArray(TypeAssert::requireArray($data, 'category')) : null,
+            tags: isset($data['tags']) ? array_map(fn($item) => Tag::fromArray(is_array($item) ? $item : throw new \UnexpectedValueException("Field 'tags' items must be array, got " . get_debug_type($item))), TypeAssert::requireList($data, 'tags')) : null,
+            photoUrls: isset($data['photoUrls']) ? array_map(fn($item) => is_string($item) ? $item : throw new \UnexpectedValueException("Field 'photoUrls' items must be string, got " . get_debug_type($item)), TypeAssert::requireList($data, 'photoUrls')) : null,
         );
     }
 

@@ -1,0 +1,121 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }}\Models;
+
+/**
+ * Runtime type assertions shared by generated DTOs.
+ *
+ * Each `require*` method validates that the given key is present and has the
+ * expected PHP type, throwing `\UnexpectedValueException` otherwise. This
+ * gives `fromArray()` deserialization real runtime safety — arbitrary arrays
+ * cannot silently degrade into malformed DTOs.
+ */
+final class TypeAssert
+{
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function requireInt(array $data, string $key): int
+    {
+        if (!array_key_exists($key, $data) || $data[$key] === null) {
+            throw new \UnexpectedValueException(sprintf("Missing required field '%s'", $key));
+        }
+        $value = $data[$key];
+        if (!is_int($value)) {
+            throw new \UnexpectedValueException(
+                sprintf("Field '%s' must be int, got %s", $key, get_debug_type($value))
+            );
+        }
+        return $value;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function requireString(array $data, string $key): string
+    {
+        if (!array_key_exists($key, $data) || $data[$key] === null) {
+            throw new \UnexpectedValueException(sprintf("Missing required field '%s'", $key));
+        }
+        $value = $data[$key];
+        if (!is_string($value)) {
+            throw new \UnexpectedValueException(
+                sprintf("Field '%s' must be string, got %s", $key, get_debug_type($value))
+            );
+        }
+        return $value;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function requireFloat(array $data, string $key): float
+    {
+        if (!array_key_exists($key, $data) || $data[$key] === null) {
+            throw new \UnexpectedValueException(sprintf("Missing required field '%s'", $key));
+        }
+        $value = $data[$key];
+        // Accept integer-valued JSON numbers for `number` schemas.
+        if (!is_float($value) && !is_int($value)) {
+            throw new \UnexpectedValueException(
+                sprintf("Field '%s' must be float, got %s", $key, get_debug_type($value))
+            );
+        }
+        return (float) $value;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function requireBool(array $data, string $key): bool
+    {
+        if (!array_key_exists($key, $data) || $data[$key] === null) {
+            throw new \UnexpectedValueException(sprintf("Missing required field '%s'", $key));
+        }
+        $value = $data[$key];
+        if (!is_bool($value)) {
+            throw new \UnexpectedValueException(
+                sprintf("Field '%s' must be bool, got %s", $key, get_debug_type($value))
+            );
+        }
+        return $value;
+    }
+
+    /**
+     * @param array<mixed> $data
+     * @return array<mixed>
+     */
+    public static function requireArray(array $data, string $key): array
+    {
+        if (!array_key_exists($key, $data) || $data[$key] === null) {
+            throw new \UnexpectedValueException(sprintf("Missing required field '%s'", $key));
+        }
+        $value = $data[$key];
+        if (!is_array($value)) {
+            throw new \UnexpectedValueException(
+                sprintf("Field '%s' must be array, got %s", $key, get_debug_type($value))
+            );
+        }
+        return $value;
+    }
+
+    /**
+     * @param array<mixed> $data
+     * @return list<mixed>
+     */
+    public static function requireList(array $data, string $key): array
+    {
+        if (!array_key_exists($key, $data) || $data[$key] === null) {
+            throw new \UnexpectedValueException(sprintf("Missing required field '%s'", $key));
+        }
+        $value = $data[$key];
+        if (!is_array($value) || !array_is_list($value)) {
+            throw new \UnexpectedValueException(
+                sprintf("Field '%s' must be a list (indexed array), got %s", $key, get_debug_type($value))
+            );
+        }
+        return $value;
+    }
+}

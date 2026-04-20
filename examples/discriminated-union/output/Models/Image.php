@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Example\Models;
+namespace App\Generated\Models;
 
-use App\Example\Models\Shape;
+use App\Generated\Models\TypeAssert;
+use App\Generated\Models\Shape;
 
 /**
  * An image resource. The `shape` property is a nullable reference to a Shape — demonstrates the oneOf + null-sentinel pattern.
@@ -40,16 +41,18 @@ readonly final class Image
     ) {}
 
     /**
-     * @param ImageData $data
+     * @param array<mixed> $data
+     * @phpstan-assert ImageData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            id: (int) ($data['id'] ?? throw new \UnexpectedValueException("Missing required field 'id'")),
-            url: (string) ($data['url'] ?? throw new \UnexpectedValueException("Missing required field 'url'")),
-            shape: isset($data['shape']) ? Shape::fromArray($data['shape']) : null,
-            label: isset($data['label']) ? (string) $data['label'] : null,
+            id: TypeAssert::requireInt($data, 'id'),
+            url: TypeAssert::requireString($data, 'url'),
+            shape: isset($data['shape']) ? Shape::fromArray(TypeAssert::requireArray($data, 'shape')) : null,
+            label: isset($data['label']) ? TypeAssert::requireString($data, 'label') : null,
         );
     }
 

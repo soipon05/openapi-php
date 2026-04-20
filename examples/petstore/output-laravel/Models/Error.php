@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Petstore\Models;
 
+use App\Petstore\Models\TypeAssert;
+
 /**
  * Standard error payload returned on 4xx / 5xx responses.
  *
@@ -31,15 +33,17 @@ readonly final class Error
     ) {}
 
     /**
-     * @param ErrorData $data
+     * @param array<mixed> $data
+     * @phpstan-assert ErrorData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            code: (int) ($data['code'] ?? throw new \UnexpectedValueException("Missing required field 'code'")),
-            message: (string) ($data['message'] ?? throw new \UnexpectedValueException("Missing required field 'message'")),
-            details: isset($data['details']) ? (string) $data['details'] : null,
+            code: TypeAssert::requireInt($data, 'code'),
+            message: TypeAssert::requireString($data, 'message'),
+            details: isset($data['details']) ? TypeAssert::requireString($data, 'details') : null,
         );
     }
 

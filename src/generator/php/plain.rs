@@ -73,13 +73,49 @@ impl PlainPhpBackend {
             "api_exception.php.j2",
             include_str!("../templates/php/api_exception.php.j2"),
         )?;
+        add_template_with_override(
+            &mut env,
+            templates_dir,
+            "type_assert",
+            "type_assert.php.j2",
+            include_str!("../templates/php/type_assert.php.j2"),
+        )?;
         Ok(Self { env })
+    }
+
+    /// True when the spec has at least one schema that will produce a DTO
+    /// requiring runtime type assertions (object/union with properties).
+    fn needs_type_assert(spec: &crate::ir::ResolvedSpec) -> bool {
+        spec.schemas.values().any(|s| match s {
+            ResolvedSchema::Object(obj) => !obj.properties.is_empty(),
+            ResolvedSchema::Union(_) => true,
+            _ => false,
+        })
     }
 }
 
 impl CodegenBackend for PlainPhpBackend {
     fn render(&self, ctx: &CodegenContext<'_>) -> Result<Vec<RenderedFile>> {
         let mut files: Vec<RenderedFile> = Vec::new();
+
+        // Shared TypeAssert helper — emitted once when any DTO needs it
+        if Self::needs_type_assert(ctx.spec) {
+            #[derive(Serialize)]
+            struct TypeAssertCtx<'a> {
+                namespace: &'a str,
+            }
+            let ta_ctx = TypeAssertCtx {
+                namespace: ctx.namespace,
+            };
+            let content = self
+                .env
+                .get_template("type_assert")?
+                .render(Value::from_serialize(&ta_ctx))?;
+            files.push(RenderedFile {
+                rel_path: PathBuf::from("Models/TypeAssert.php"),
+                content,
+            });
+        }
 
         // Models
         for (name, schema) in &ctx.spec.schemas {

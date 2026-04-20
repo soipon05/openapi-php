@@ -43,7 +43,7 @@ pub struct PrimitiveSchema {
     pub pattern: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PhpPrimitive {
     String,
     Int,
@@ -93,7 +93,7 @@ pub struct EnumVariant {
     pub label: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnumBackingType {
     String,
     Int,

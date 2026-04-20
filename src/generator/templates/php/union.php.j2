@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 namespace {{ namespace }}\Models;
+
+use {{ namespace }}\Models\TypeAssert;
 {% for import in use_imports %}
 use {{ namespace }}\Models\{{ import }};
 {% endfor %}
@@ -35,10 +37,13 @@ final class {{ name }}
     ) {}
 {% endif %}
 
-    /** @param {{ phpstan_param_type }} $data */
+    /**
+     * @param array<mixed> $data
+     * @phpstan-assert {{ phpstan_param_type }} $data
+     */
     public static function fromArray(array $data): self
     {
-        $disc = (string) ($data['{{ discriminator }}'] ?? '');
+        $disc = TypeAssert::requireString($data, '{{ discriminator }}');
 {% for variant in variants %}
         if ($disc === '{{ variant.match_key }}') {
             /** @var {{ variant.class_name }}Data $data */

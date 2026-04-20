@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 namespace App\Generated\Models;
+
+use App\Generated\Models\TypeAssert;
 use App\Generated\Models\Circle;
 use App\Generated\Models\Rectangle;
 /**
@@ -20,10 +22,13 @@ final readonly class Shape
         public Circle|Rectangle $value,
     ) {}
 
-    /** @param CircleData|RectangleData $data */
+    /**
+     * @param array<mixed> $data
+     * @phpstan-assert CircleData|RectangleData $data
+     */
     public static function fromArray(array $data): self
     {
-        $disc = (string) ($data['shapeType'] ?? '');
+        $disc = TypeAssert::requireString($data, 'shapeType');
         if ($disc === 'circle') {
             /** @var CircleData $data */
             return new self(Circle::fromArray($data));

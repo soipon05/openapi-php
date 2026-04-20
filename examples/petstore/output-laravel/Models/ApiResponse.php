@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Petstore\Models;
 
+use App\Petstore\Models\TypeAssert;
+
 /**
  * Generic envelope returned by some store operations.
  *
@@ -31,15 +33,17 @@ readonly final class ApiResponse
     ) {}
 
     /**
-     * @param ApiResponseData $data
+     * @param array<mixed> $data
+     * @phpstan-assert ApiResponseData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            code: isset($data['code']) ? (int) $data['code'] : null,
-            type: isset($data['type']) ? (string) $data['type'] : null,
-            message: isset($data['message']) ? (string) $data['message'] : null,
+            code: isset($data['code']) ? TypeAssert::requireInt($data, 'code') : null,
+            type: isset($data['type']) ? TypeAssert::requireString($data, 'type') : null,
+            message: isset($data['message']) ? TypeAssert::requireString($data, 'message') : null,
         );
     }
 

@@ -360,8 +360,7 @@ fn petstore_pet_created_at_has_date_time_format() {
 /// definition and must resolve to `requires_auth: true`.
 #[test]
 fn global_security_inherited_when_operation_has_none() {
-    let spec =
-        openapi_php::parser::load_and_resolve(&fixture("global_security.yaml")).unwrap();
+    let spec = openapi_php::parser::load_and_resolve(&fixture("global_security.yaml")).unwrap();
 
     let ep = spec
         .endpoints
@@ -379,8 +378,7 @@ fn global_security_inherited_when_operation_has_none() {
 /// must resolve to `requires_auth: false`.
 #[test]
 fn global_security_overridden_by_empty_operation_security() {
-    let spec =
-        openapi_php::parser::load_and_resolve(&fixture("global_security.yaml")).unwrap();
+    let spec = openapi_php::parser::load_and_resolve(&fixture("global_security.yaml")).unwrap();
 
     let ep = spec
         .endpoints

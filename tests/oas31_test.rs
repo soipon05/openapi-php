@@ -184,7 +184,9 @@ fn const_keyword_resolves_through_string_type() {
 fn webhooks_are_tolerated_but_not_emitted_as_endpoints() {
     let spec = parser::load_and_resolve(&fixture("oas31_comprehensive.yaml")).unwrap();
     assert!(
-        spec.endpoints.iter().all(|e| e.operation_id != "onItemCreated"),
+        spec.endpoints
+            .iter()
+            .all(|e| e.operation_id != "onItemCreated"),
         "webhook operationIds must not leak into the client"
     );
 }

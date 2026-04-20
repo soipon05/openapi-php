@@ -18,8 +18,8 @@ use crate::ir::{
 };
 use crate::parser::error::ResolveError;
 use crate::parser::raw::types::{
-    AdditionalProperties, EnumValue, OpenApi as RawOpenApi, Operation, Parameter, ParameterLocation,
-    RawOrRef, RequestBody, Response, Schema, SchemaType,
+    AdditionalProperties, EnumValue, OpenApi as RawOpenApi, Operation, Parameter,
+    ParameterLocation, RawOrRef, RequestBody, Response, Schema, SchemaType,
 };
 use crate::php_utils::{escape_reserved, to_camel_case, to_pascal_case};
 
@@ -62,8 +62,7 @@ pub fn resolve(raw: &RawOpenApi) -> Result<ResolvedSpec> {
 
         let path_level = item.parameters.clone();
         for (method, op) in ops {
-            let ep =
-                resolver.resolve_endpoint(path, method, op, &path_level, &raw.security)?;
+            let ep = resolver.resolve_endpoint(path, method, op, &path_level, &raw.security)?;
             endpoints.push(ep);
         }
     }

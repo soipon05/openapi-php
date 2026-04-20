@@ -10,7 +10,9 @@ pub use crate::php_utils::{
     sanitize_phpdoc, to_camel_case, to_pascal_case,
 };
 
-use crate::ir::{EnumBackingType, MapSchema, PhpPrimitive, ResolvedParam, ResolvedSchema, UnionSchema};
+use crate::ir::{
+    EnumBackingType, MapSchema, PhpPrimitive, ResolvedParam, ResolvedSchema, UnionSchema,
+};
 use std::collections::BTreeSet;
 
 // ─── Nullable-ref union detection ────────────────────────────────────────
@@ -116,80 +118,109 @@ pub fn items_type_name(schema: &ResolvedSchema) -> String {
 
 pub fn inner_from_array(key: &str, schema: &ResolvedSchema) -> String {
     // `key` is expected to be pre-sanitized by the caller (from_array_expr).
+    // The `isset($data['key'])` guard at the caller ensures presence; here we
+    // only need runtime *type* validation via `TypeAssert::require*`.
     match schema {
         ResolvedSchema::Primitive(p) => match p.php_type {
-            PhpPrimitive::Int => format!("(int) $data['{key}']"),
-            PhpPrimitive::Float => format!("(float) $data['{key}']"),
-            PhpPrimitive::Bool => format!("(bool) $data['{key}']"),
+            PhpPrimitive::Int => format!("TypeAssert::requireInt($data, '{key}')"),
+            PhpPrimitive::Float => format!("TypeAssert::requireFloat($data, '{key}')"),
+            PhpPrimitive::Bool => format!("TypeAssert::requireBool($data, '{key}')"),
             PhpPrimitive::DateTime => {
-                format!("new \\DateTimeImmutable($data['{key}'])")
+                format!("new \\DateTimeImmutable(TypeAssert::requireString($data, '{key}'))")
             }
-            PhpPrimitive::String | PhpPrimitive::Mixed => format!("(string) $data['{key}']"),
+            PhpPrimitive::String | PhpPrimitive::Mixed => {
+                format!("TypeAssert::requireString($data, '{key}')")
+            }
         },
         ResolvedSchema::Ref(name) => {
             let safe = sanitize_php_ident(name);
-            format!("{safe}::fromArray($data['{key}'])")
+            format!("{safe}::fromArray(TypeAssert::requireArray($data, '{key}'))")
         }
-        ResolvedSchema::Array(arr) => match arr.items.as_ref() {
-            ResolvedSchema::Ref(rname) => {
-                let safe = sanitize_php_ident(rname);
-                format!("array_map(fn($item) => {safe}::fromArray($item), $data['{key}'])")
-            }
-            _ => format!("(array) $data['{key}']"),
-        },
+        ResolvedSchema::Array(arr) => array_from_list_expr(key, &arr.items),
         ResolvedSchema::Object(_) | ResolvedSchema::Map(_) => {
-            format!("(array) $data['{key}']")
+            format!("TypeAssert::requireArray($data, '{key}')")
         }
         _ => format!("$data['{key}']"),
     }
 }
 
-/// Build a `fromArray` expression for a **required** (non-nullable) field.
-///
-/// Uses the null-coalescing throw operator (`?? throw`) so that a missing key
-/// produces a clear `\UnexpectedValueException` instead of an "Undefined array
-/// key" PHP warning or a `TypeError` from a cast on `null`.
-///
-/// Array schemas keep the `?? []` default (an absent optional array is treated
-/// as empty rather than a hard error), which matches existing behaviour.
-fn required_from_array_expr(key: &str, schema: &ResolvedSchema) -> String {
-    let throw = format!(
-        "throw new \\UnexpectedValueException(\"Missing required field '{key}'\")"
-    );
-    match schema {
+/// Build the `array_map(..., TypeAssert::requireList(...))` expression for a
+/// list-typed property whose items have `items` schema.
+fn array_from_list_expr(key: &str, items: &ResolvedSchema) -> String {
+    let list = format!("TypeAssert::requireList($data, '{key}')");
+    match items {
+        ResolvedSchema::Ref(rname) => {
+            let safe = sanitize_php_ident(rname);
+            // Ref items: map each item through its fromArray, narrowing mixed→array first.
+            format!(
+                "array_map(fn($item) => {safe}::fromArray(is_array($item) ? $item : throw new \\UnexpectedValueException(\"Field '{key}' items must be array, got \" . get_debug_type($item))), {list})"
+            )
+        }
         ResolvedSchema::Primitive(p) => {
-            let cast = match p.php_type {
-                PhpPrimitive::Int => "(int)",
-                PhpPrimitive::Float => "(float)",
-                PhpPrimitive::Bool => "(bool)",
-                PhpPrimitive::String | PhpPrimitive::Mixed => "(string)",
-                PhpPrimitive::DateTime => "",
-            };
-            if p.php_type == PhpPrimitive::DateTime {
-                format!("new \\DateTimeImmutable($data['{key}'] ?? {throw})")
-            } else {
-                format!("{cast} ($data['{key}'] ?? {throw})")
-            }
-        }
-        ResolvedSchema::Ref(name) => {
-            let safe = sanitize_php_ident(name);
-            format!("{safe}::fromArray($data['{key}'] ?? {throw})")
-        }
-        // Array schemas: keep existing `?? []` default so an absent array key
-        // is treated as empty rather than a hard error.
-        ResolvedSchema::Array(arr) => match arr.items.as_ref() {
-            ResolvedSchema::Ref(rname) => {
-                let safe = sanitize_php_ident(rname);
+            let (predicate, type_name, transform) = primitive_item_check(p.php_type);
+            if transform.is_empty() {
+                // String/Int/Float/Bool/Mixed: narrow the item, return as-is.
                 format!(
-                    "array_map(fn($item) => {safe}::fromArray($item), $data['{key}'] ?? [])"
+                    "array_map(fn($item) => {predicate}($item) ? $item : throw new \\UnexpectedValueException(\"Field '{key}' items must be {type_name}, got \" . get_debug_type($item)), {list})"
+                )
+            } else {
+                // DateTime: narrow to string, then construct.
+                format!(
+                    "array_map(fn($item) => {transform}({predicate}($item) ? $item : throw new \\UnexpectedValueException(\"Field '{key}' items must be {type_name}, got \" . get_debug_type($item))), {list})"
                 )
             }
-            _ => format!("(array) ($data['{key}'] ?? [])"),
-        },
-        ResolvedSchema::Object(_) | ResolvedSchema::Map(_) => {
-            format!("(array) ($data['{key}'] ?? {throw})")
         }
-        _ => format!("($data['{key}'] ?? {throw})"),
+        _ => list,
+    }
+}
+
+/// Returns `(is_predicate, php_type_name, transform_expr)` for per-item list validation.
+/// `transform_expr` is empty when the narrowed value is returned directly.
+fn primitive_item_check(ty: PhpPrimitive) -> (&'static str, &'static str, &'static str) {
+    match ty {
+        PhpPrimitive::Int => ("is_int", "int", ""),
+        PhpPrimitive::Float => ("is_float", "float", ""),
+        PhpPrimitive::Bool => ("is_bool", "bool", ""),
+        PhpPrimitive::String | PhpPrimitive::Mixed => ("is_string", "string", ""),
+        PhpPrimitive::DateTime => ("is_string", "string", "new \\DateTimeImmutable"),
+    }
+}
+
+/// Build a `fromArray` expression for a **required** (non-nullable) field.
+///
+/// Delegates to `TypeAssert::require*` helpers that validate both presence and
+/// runtime type, throwing `\UnexpectedValueException` on either mismatch. This
+/// replaces earlier silent-cast behaviour (`(int) $data['x']`) so that malformed
+/// input fails loudly at the DTO boundary.
+///
+/// Array schemas throw on missing; callers relying on "absent = empty" must
+/// mark the property optional in the schema.
+fn required_from_array_expr(key: &str, schema: &ResolvedSchema) -> String {
+    match schema {
+        ResolvedSchema::Primitive(p) => match p.php_type {
+            PhpPrimitive::Int => format!("TypeAssert::requireInt($data, '{key}')"),
+            PhpPrimitive::Float => format!("TypeAssert::requireFloat($data, '{key}')"),
+            PhpPrimitive::Bool => format!("TypeAssert::requireBool($data, '{key}')"),
+            PhpPrimitive::DateTime => {
+                format!("new \\DateTimeImmutable(TypeAssert::requireString($data, '{key}'))")
+            }
+            PhpPrimitive::String | PhpPrimitive::Mixed => {
+                format!("TypeAssert::requireString($data, '{key}')")
+            }
+        },
+        ResolvedSchema::Ref(name) => {
+            let safe = sanitize_php_ident(name);
+            format!("{safe}::fromArray(TypeAssert::requireArray($data, '{key}'))")
+        }
+        ResolvedSchema::Array(arr) => array_from_list_expr(key, &arr.items),
+        ResolvedSchema::Object(_) | ResolvedSchema::Map(_) => {
+            format!("TypeAssert::requireArray($data, '{key}')")
+        }
+        _ => {
+            let throw =
+                format!("throw new \\UnexpectedValueException(\"Missing required field '{key}'\")");
+            format!("($data['{key}'] ?? {throw})")
+        }
     }
 }
 
@@ -203,7 +234,9 @@ pub fn from_array_expr(key: &str, schema: &ResolvedSchema, nullable: bool) -> St
         && let Some(name) = nullable_ref_name(u)
     {
         let safe = sanitize_php_ident(name);
-        return format!("isset($data['{key}']) ? {safe}::fromArray($data['{key}']) : null");
+        return format!(
+            "isset($data['{key}']) ? {safe}::fromArray(TypeAssert::requireArray($data, '{key}')) : null"
+        );
     }
 
     if nullable {

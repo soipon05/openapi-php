@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Generated\Models;
 
+use App\Generated\Models\TypeAssert;
+
 /**
  * @phpstan-type CreateItemRequestData array{
  *     'name': string,
@@ -18,14 +20,16 @@ readonly final class CreateItemRequest
     ) {}
 
     /**
-     * @param CreateItemRequestData $data
+     * @param array<mixed> $data
+     * @phpstan-assert CreateItemRequestData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            name: (string) ($data['name'] ?? throw new \UnexpectedValueException("Missing required field 'name'")),
-            description: isset($data['description']) ? (string) $data['description'] : null,
+            name: TypeAssert::requireString($data, 'name'),
+            description: isset($data['description']) ? TypeAssert::requireString($data, 'description') : null,
         );
     }
 

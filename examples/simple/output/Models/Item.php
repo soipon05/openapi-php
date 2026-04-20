@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Generated\Models;
 
+use App\Generated\Models\TypeAssert;
 use App\Generated\Models\ItemStatus;
 
 /**
@@ -26,18 +27,20 @@ readonly final class Item
     ) {}
 
     /**
-     * @param ItemData $data
+     * @param array<mixed> $data
+     * @phpstan-assert ItemData $data
      * @return self
+     * @throws \UnexpectedValueException On missing required field or type mismatch
      * @throws \Exception On invalid date-time string
      */
     public static function fromArray(array $data): self
     {
         return new self(
-            id: (int) ($data['id'] ?? throw new \UnexpectedValueException("Missing required field 'id'")),
-            name: (string) ($data['name'] ?? throw new \UnexpectedValueException("Missing required field 'name'")),
-            description: isset($data['description']) ? (string) $data['description'] : null,
-            status: isset($data['status']) ? ItemStatus::from($data['status']) : null,
-            createdAt: isset($data['createdAt']) ? new \DateTimeImmutable($data['createdAt']) : null,
+            id: TypeAssert::requireInt($data, 'id'),
+            name: TypeAssert::requireString($data, 'name'),
+            description: isset($data['description']) ? TypeAssert::requireString($data, 'description') : null,
+            status: isset($data['status']) ? ItemStatus::from(TypeAssert::requireString($data, 'status')) : null,
+            createdAt: isset($data['createdAt']) ? new \DateTimeImmutable(TypeAssert::requireString($data, 'createdAt')) : null,
         );
     }
 
