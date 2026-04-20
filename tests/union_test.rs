@@ -187,7 +187,7 @@ fn plain_generates_union_file_no_mapping_uses_schema_name() {
 }
 
 #[test]
-fn plain_does_not_generate_file_for_union_without_discriminator() {
+fn plain_generates_union_file_without_discriminator_uses_try_catch() {
     let spec = spec();
     let ctx = CodegenContext {
         php_version: &PhpVersion::Php82,
@@ -198,9 +198,21 @@ fn plain_does_not_generate_file_for_union_without_discriminator() {
     let backend = PlainPhpBackend::new(None).unwrap();
     let files = backend.run_dry(&ctx).unwrap();
 
+    let content = files
+        .get(&PathBuf::from("Models/PetAny.php"))
+        .expect("union without discriminator should now produce a file");
+
     assert!(
-        !files.contains_key(&PathBuf::from("Models/PetAny.php")),
-        "union without discriminator should produce no file"
+        content.contains("Dog|Cat $value"),
+        "value property must use PHP union type:\n{content}"
+    );
+    assert!(
+        content.contains("try {") && content.contains("catch (\\UnexpectedValueException"),
+        "fromArray must use try/catch fall-through:\n{content}"
+    );
+    assert!(
+        !content.contains("$disc = "),
+        "no-discriminator union must not emit discriminator dispatch:\n{content}"
     );
 }
 

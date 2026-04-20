@@ -30,11 +30,9 @@ final readonly class Shape
     {
         $disc = TypeAssert::requireString($data, 'shapeType');
         if ($disc === 'circle') {
-            /** @var CircleData $data */
             return new self(Circle::fromArray($data));
         }
         if ($disc === 'rectangle') {
-            /** @var RectangleData $data */
             return new self(Rectangle::fromArray($data));
         }
         throw new \UnexpectedValueException(

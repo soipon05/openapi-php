@@ -231,7 +231,11 @@ pub struct UnionCtx {
     pub name: String,
     pub namespace: String,
     pub description: Option<String>,
-    /// discriminator.propertyName, e.g. "type"
+    /// true when the OpenAPI schema declares a `discriminator.propertyName`.
+    /// When false, `fromArray()` tries each variant in order (catch-and-retry);
+    /// when true, it dispatches on the discriminator field.
+    pub has_discriminator: bool,
+    /// discriminator.propertyName, e.g. "type" (empty when `has_discriminator` is false)
     pub discriminator: String,
     /// PHP union type string, e.g. "Dog|Cat"
     pub variant_type: String,
@@ -499,17 +503,18 @@ pub fn build_enum_ctx(name: &str, schema: &EnumSchema, namespace: &str) -> EnumC
     }
 }
 
-/// Returns `None` when the union cannot be code-generated as a discriminated container:
-/// - No discriminator declared, OR
+/// Returns `None` when the union cannot be code-generated:
 /// - Any variant is not a named `$ref` (inline / primitive variants are unsupported)
+///
+/// With a discriminator, `fromArray()` dispatches on the declared property.
+/// Without one, `fromArray()` tries each variant in order and catches
+/// `\UnexpectedValueException` from `TypeAssert` to fall through.
 pub fn build_union_ctx(
     name: &str,
     schema: &UnionSchema,
     namespace: &str,
     use_readonly_class: bool,
 ) -> Option<UnionCtx> {
-    let disc = schema.discriminator.as_ref()?;
-
     // All variants must be named $ref
     let class_names: Vec<String> = schema
         .variants
@@ -526,12 +531,16 @@ pub fn build_union_ctx(
         return None;
     }
 
+    let has_discriminator = schema.discriminator.is_some();
+
     let variants: Vec<UnionVariantCtx> = class_names
         .iter()
         .map(|class_name| {
-            // If mapping is present, find the key whose value is this class name.
-            // If absent, OAS spec says use the schema name as-is.
-            let match_key = if schema.discriminator_mapping.is_empty() {
+            // Match key is only meaningful when a discriminator is declared.
+            // With no discriminator, the template iterates variants for try/catch.
+            let match_key = if !has_discriminator {
+                String::new()
+            } else if schema.discriminator_mapping.is_empty() {
                 sanitize_php_string_literal(class_name)
             } else {
                 schema
@@ -567,7 +576,12 @@ pub fn build_union_ctx(
         name: sanitize_php_ident(name),
         namespace: namespace.to_string(),
         description: schema.description.as_deref().map(sanitize_phpdoc),
-        discriminator: sanitize_php_string_literal(disc),
+        has_discriminator,
+        discriminator: schema
+            .discriminator
+            .as_deref()
+            .map(sanitize_php_string_literal)
+            .unwrap_or_default(),
         variant_type,
         variants,
         use_imports,

@@ -43,16 +43,32 @@ final class {{ name }}
      */
     public static function fromArray(array $data): self
     {
+{% if has_discriminator %}
         $disc = TypeAssert::requireString($data, '{{ discriminator }}');
 {% for variant in variants %}
         if ($disc === '{{ variant.match_key }}') {
-            /** @var {{ variant.class_name }}Data $data */
             return new self({{ variant.class_name }}::fromArray($data));
         }
 {% endfor %}
         throw new \UnexpectedValueException(
             '{{ name }}: unknown discriminator value "' . $disc . '"',
         );
+{% else %}
+        // No discriminator declared — try each variant in order and fall
+        // through on `\UnexpectedValueException` raised by `TypeAssert` or a
+        // variant's own validation.
+        $errors = [];
+{% for variant in variants %}
+        try {
+            return new self({{ variant.class_name }}::fromArray($data));
+        } catch (\UnexpectedValueException $e) {
+            $errors[] = '{{ variant.class_name }}: ' . $e->getMessage();
+        }
+{% endfor %}
+        throw new \UnexpectedValueException(
+            '{{ name }}: value matched no variant (' . implode('; ', $errors) . ')',
+        );
+{% endif %}
     }
 
     /** @return {{ name }}Data */
