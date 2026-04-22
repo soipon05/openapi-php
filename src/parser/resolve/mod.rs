@@ -631,6 +631,7 @@ impl<'a> Resolver<'a> {
 
         const PRIORITY: &[&str] = &[
             "application/json",
+            "application/x-www-form-urlencoded",
             "multipart/form-data",
             "application/octet-stream",
             "text/plain",

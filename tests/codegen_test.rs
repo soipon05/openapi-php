@@ -1451,3 +1451,29 @@ fn openapi31_nullable_generates_correct_php_type() {
         "name should be non-nullable string\n{item_php}"
     );
 }
+
+#[test]
+fn form_urlencoded_request_body_uses_http_build_query() {
+    let spec = parser::load_and_resolve(&fixture("form_urlencoded.yaml")).unwrap();
+    let ctx = CodegenContext {
+        php_version: &PhpVersion::Php82,
+        spec: &spec,
+        namespace: "App\\Test",
+        split_by_tag: false,
+    };
+    let files = PlainPhpBackend::new(None).unwrap().run_dry(&ctx).unwrap();
+    let client = files[&PathBuf::from("Client/ApiClient.php")].as_str();
+
+    assert!(
+        client.contains("http_build_query("),
+        "form-urlencoded request body must use http_build_query:\n{client}"
+    );
+    assert!(
+        client.contains("application/x-www-form-urlencoded"),
+        "form-urlencoded request body must set Content-Type header:\n{client}"
+    );
+    assert!(
+        !client.contains("buildMultipartBody"),
+        "form-urlencoded request body must not use multipart helper:\n{client}"
+    );
+}

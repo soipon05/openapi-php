@@ -111,6 +111,10 @@ final class {{ class_name }}
         [$boundary, $multipartBody] = $this->buildMultipartBody($body);
         $stream = $this->streamFactory->createStream($multipartBody);
         $request = $request->withBody($stream)->withHeader('Content-Type', 'multipart/form-data; boundary=' . $boundary);
+{% elif ep.request_body_mode == "form" %}
+        $formData = {% if ep.request_body_is_dto %}$body->toArray(){% else %}$body{% endif %};
+        $stream = $this->streamFactory->createStream(http_build_query($formData));
+        $request = $request->withBody($stream)->withHeader('Content-Type', 'application/x-www-form-urlencoded');
 {% elif ep.request_body_mode == "binary" %}
         $stream = $body instanceof \Psr\Http\Message\StreamInterface ? $body : $this->streamFactory->createStream((string) $body);
         $request = $request->withBody($stream)->withHeader('Content-Type', 'application/octet-stream');

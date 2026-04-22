@@ -922,6 +922,7 @@ pub fn build_client_ctx(
                     .as_ref()
                     .map(|rb| match rb.content_type.as_str() {
                         "application/json" => "json",
+                        "application/x-www-form-urlencoded" => "form",
                         "multipart/form-data" => "multipart",
                         "application/octet-stream" => "binary",
                         _ => "text",
